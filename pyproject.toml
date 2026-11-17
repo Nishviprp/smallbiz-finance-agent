@@ -1,0 +1,20 @@
+[project]
+name = "smallbiz-finance-agent"
+version = "0.1.0"
+description = "Open-source AI bookkeeping agent for small businesses"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008", "E501"]  # FastAPI Depends() defaults; line length handled by formatter
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"

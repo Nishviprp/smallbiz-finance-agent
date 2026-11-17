@@ -1,0 +1,45 @@
+"""Application settings, loaded from environment variables / .env."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
+from typing import Literal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+LLMProvider = Literal["ollama", "openai", "anthropic", "none"]
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    # Storage
+    database_url: str = "sqlite:///./data/finagent.db"
+    upload_dir: Path = Path("./data/uploads")
+    max_upload_mb: int = 20
+
+    # Business defaults
+    currency: str = "GBP"
+    # Used only when a statement's dates are ambiguous (e.g. 03/04/2026).
+    date_dayfirst: bool = True
+
+    # LLM
+    llm_provider: LLMProvider = "ollama"
+    llm_timeout_seconds: float = 90.0
+    llm_batch_size: int = 25
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1:8b"
+    openai_api_key: str | None = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o-mini"
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-haiku-5-5"
+
+    # API
+    cors_origins: str = "*"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
