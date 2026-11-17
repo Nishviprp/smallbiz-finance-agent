@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
-> 🚧 **Status: under active development (Phase 1 of 5 complete).** See [Roadmap](#roadmap).
+> 🚧 **Status: under active development (Phase 2 of 5 complete).** See [Roadmap](#roadmap).
 
 ## The problem
 
@@ -28,8 +28,10 @@ rules first, then a local LLM), and learns from your corrections — your data s
 | 🔁 | Safe re-imports — duplicate lines are detected and skipped | ✅ |
 | 🤖 | AI categorization: your rules → built-in merchant keywords → LLM (Ollama / OpenAI / Claude) | ✅ |
 | ✏️ | Editable categories; fix one transaction and it **learns a rule** for the rest | ✅ |
-| 📄 | PDF statements, receipt photos (OCR), invoices | 🔜 Phase 2 |
-| ⏰ | Unpaid invoice tracker with due-date alerts | 🔜 Phase 2 |
+| 📄 | **PDF bank statements** (tables or text, sign fixed from running balance; AI fallback) | ✅ |
+| 🧾 | **Receipts** from photos or PDFs (vision AI → OCR → patterns), auto-linked to the bank line | ✅ |
+| 📨 | **Invoices** from PDF/photo or manual entry; auto-marked **paid** when the money lands | ✅ |
+| ⏰ | Unpaid invoice tracker: overdue / due-soon alerts, aging buckets (1-30, 31-60, 61-90, 90+) | ✅ |
 | 📊 | Dashboard: P&L, cash flow, top expenses, monthly trends, KPIs | 🔜 Phase 3 |
 | 🧾 | Tax-ready export (CSV / PDF) | 🔜 Phase 4 |
 | 💬 | Chat with your books in plain English | 🔜 Phase 4 |
@@ -47,8 +49,20 @@ cp .env.example .env            # Windows: copy .env.example .env
 uvicorn finagent.main:app --reload
 ```
 
-Open **http://localhost:8000/docs** and try `POST /uploads/statement` with
-`sample_data/bank_statement_cafe.csv` (6 months of a demo café).
+Open **http://localhost:8000/docs** and try the demo café files in `sample_data/`:
+
+1. `POST /uploads/statement` → `bank_statement_cafe.csv` (6 months) or `.pdf` (January)
+2. `POST /uploads/receipt` → `receipts/receipt_screwfix.png` — linked to its bank line automatically
+3. `POST /uploads/invoice` → `invoices/INV-2026-014.pdf` — instantly **paid** (payment is in the statement)
+4. `POST /uploads/invoice` → `invoices/INV-2026-021.pdf` — then `GET /invoices/alerts` shows it **overdue**
+
+### OCR for receipt photos (optional)
+
+Install [Tesseract](https://tesseract-ocr.github.io/tessdoc/Installation.html):
+Windows — [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki) ·
+macOS — `brew install tesseract` · Linux — `sudo apt install tesseract-ocr`.
+Or skip it and set `OLLAMA_VISION_MODEL=llama3.2-vision` (or use OpenAI/Claude) to read photos with AI.
+PDFs with a text layer need neither.
 
 ### Free local AI (optional)
 
@@ -75,12 +89,18 @@ Transactions you edit by hand are never overwritten.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/uploads/statement` | Import a CSV bank statement |
+| `POST` | `/uploads/statement` | Import a bank statement (CSV or PDF) |
+| `POST` | `/uploads/receipt` | Read a receipt photo/PDF and link it to its transaction |
+| `POST` | `/uploads/invoice` | Read a sales invoice and add it to the unpaid tracker |
 | `GET` | `/transactions` | List / filter (date, category, direction, search, uncategorized) |
 | `PATCH` | `/transactions/{id}` | Change category / notes, optionally learn a rule |
 | `POST` | `/transactions/recategorize` | Re-run categorization |
 | `GET/POST/PATCH/DELETE` | `/categories` | Manage your chart of accounts |
 | `GET/POST/DELETE` | `/rules` | Manage categorization rules |
+| `GET/POST/PATCH/DELETE` | `/invoices` | Track invoices (`?status=unpaid\|overdue\|paid`) |
+| `POST` | `/invoices/{id}/mark-paid` | Mark paid manually (optionally link a transaction) |
+| `GET` | `/invoices/alerts` | Overdue + due-soon invoices, totals and aging |
+| `GET/PATCH/DELETE` | `/receipts` | Review and correct receipts |
 
 ## Development
 
@@ -95,7 +115,7 @@ Regenerate the demo data: `python scripts/generate_sample_data.py`
 ## Roadmap
 
 - [x] **Phase 1** – Core: CSV import, dedupe, AI categorization, learning rules, API, tests, CI
-- [ ] **Phase 2** – PDF statements, receipt OCR, invoices + unpaid tracker & alerts
+- [x] **Phase 2** – PDF statements, receipt OCR, invoices + unpaid tracker & alerts
 - [ ] **Phase 3** – Streamlit dashboard: P&L, cash flow, top expenses, trends, KPIs
 - [ ] **Phase 4** – Tax-ready export (CSV/PDF), chat with your books
 - [ ] **Phase 5** – Docker Compose one-command run, Postgres option, v0.1.0 release

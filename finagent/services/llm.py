@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
@@ -23,22 +24,35 @@ class LLMClient(Protocol):
 
     def complete(self, system: str, user: str, *, json_mode: bool = False) -> str: ...
 
+    def complete_vision(
+        self, system: str, user: str, image: bytes, mime: str, *, json_mode: bool = False
+    ) -> str: ...
+
 
 class OllamaClient:
     name = "ollama"
 
-    def __init__(self, base_url: str, model: str, timeout: float):
+    def __init__(self, base_url: str, model: str, timeout: float, vision_model: str = ""):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.vision_model = vision_model
         self.timeout = timeout
 
     def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+        return self._chat(self.model, system, {"role": "user", "content": user}, json_mode)
+
+    def complete_vision(
+        self, system: str, user: str, image: bytes, mime: str, *, json_mode: bool = False
+    ) -> str:
+        if not self.vision_model:
+            raise LLMError("No OLLAMA_VISION_MODEL configured")
+        msg = {"role": "user", "content": user, "images": [base64.b64encode(image).decode()]}
+        return self._chat(self.vision_model, system, msg, json_mode)
+
+    def _chat(self, model: str, system: str, message: dict, json_mode: bool) -> str:
         payload: dict = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "model": model,
+            "messages": [{"role": "system", "content": system}, message],
             "stream": False,
             "options": {"temperature": 0},
         }
@@ -61,12 +75,22 @@ class OpenAIClient:
         self.timeout = timeout
 
     def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+        return self._chat(system, user, json_mode)
+
+    def complete_vision(
+        self, system: str, user: str, image: bytes, mime: str, *, json_mode: bool = False
+    ) -> str:
+        url = f"data:{mime};base64,{base64.b64encode(image).decode()}"
+        content = [{"type": "text", "text": user}, {"type": "image_url", "image_url": {"url": url}}]
+        return self._chat(system, content, json_mode)
+
+    def _chat(self, system: str, content: str | list, json_mode: bool) -> str:
         payload: dict = {
             "model": self.model,
             "temperature": 0,
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": user},
+                {"role": "user", "content": content},
             ],
         }
         if json_mode:
@@ -88,6 +112,25 @@ class AnthropicClient:
         self.timeout = timeout
 
     def complete(self, system: str, user: str, *, json_mode: bool = False) -> str:
+        return self._messages(system, user, json_mode)
+
+    def complete_vision(
+        self, system: str, user: str, image: bytes, mime: str, *, json_mode: bool = False
+    ) -> str:
+        content = [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": mime,
+                    "data": base64.b64encode(image).decode(),
+                },
+            },
+            {"type": "text", "text": user},
+        ]
+        return self._messages(system, content, json_mode)
+
+    def _messages(self, system: str, content: str | list, json_mode: bool) -> str:
         if json_mode:
             system += "\nRespond with a single valid JSON object and nothing else."
         payload = {
@@ -95,7 +138,7 @@ class AnthropicClient:
             "max_tokens": 4096,
             "temperature": 0,
             "system": system,
-            "messages": [{"role": "user", "content": user}],
+            "messages": [{"role": "user", "content": content}],
         }
         headers = {"x-api-key": self.api_key, "anthropic-version": "2023-06-01"}
         data = _post("https://api.anthropic.com/v1/messages", payload, headers, self.timeout)
@@ -120,7 +163,9 @@ def get_llm(settings: Settings | None = None) -> LLMClient | None:
     """Return the configured LLM client, or None when AI features are disabled."""
     s = settings or get_settings()
     if s.llm_provider == "ollama":
-        return OllamaClient(s.ollama_base_url, s.ollama_model, s.llm_timeout_seconds)
+        return OllamaClient(
+            s.ollama_base_url, s.ollama_model, s.llm_timeout_seconds, s.ollama_vision_model
+        )
     if s.llm_provider == "openai":
         if not s.openai_api_key:
             log.warning("LLM_PROVIDER=openai but OPENAI_API_KEY is empty; AI disabled")

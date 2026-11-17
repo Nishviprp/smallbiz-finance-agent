@@ -1,7 +1,11 @@
-"""Generate a realistic 6-month bank statement for a small café (deterministic).
+"""Generate realistic demo data for a small café (deterministic).
 
 Usage: python scripts/generate_sample_data.py
-Writes sample_data/bank_statement_cafe.csv (UK-style: DD/MM/YYYY, signed amounts, balance).
+Writes to sample_data/:
+  bank_statement_cafe.csv   6 months, UK-style (DD/MM/YYYY, signed amounts, balance)
+  bank_statement_cafe.pdf   January as a PDF statement (paid out / paid in / balance)
+  receipts/                 receipt photo (PNG) + PDF that match statement lines
+  invoices/                 sales invoices: one paid (in the statement), one overdue
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ def money(x: float) -> Decimal:
     return Decimal(str(round(x, 2)))
 
 
-def main() -> None:
+def generate_rows() -> list[tuple[dt.date, str, Decimal]]:
     rng = random.Random(42)
     rows: list[tuple[dt.date, str, Decimal]] = []
     day = START
@@ -88,8 +92,14 @@ def main() -> None:
         if rng.random() < 0.02:
             rows.append((day, "CARD PAYMENT TO MAKRO", money(-rng.uniform(40, 140))))
         day += dt.timedelta(days=1)
+    return rows
 
-    balance = Decimal("8500.00")
+
+OPENING_BALANCE = Decimal("8500.00")
+
+
+def write_csv(rows) -> None:
+    balance = OPENING_BALANCE
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", newline="") as fh:
         w = csv.writer(fh)
@@ -98,6 +108,174 @@ def main() -> None:
             balance += amt
             w.writerow([d.strftime("%d/%m/%Y"), desc, f"{amt:.2f}", f"{balance:.2f}"])
     print(f"Wrote {len(rows)} transactions to {OUT}")
+
+
+def write_pdf_statement(rows) -> None:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    path = OUT.parent / "bank_statement_cafe.pdf"
+    styles = getSampleStyleSheet()
+    data = [["Date", "Description", "Paid out", "Paid in", "Balance"]]
+    balance = OPENING_BALANCE
+    for d, desc, amt in rows:
+        if d.month != 1:
+            continue
+        balance += amt
+        out_, in_ = (f"{-amt:,.2f}", "") if amt < 0 else ("", f"{amt:,.2f}")
+        data.append([d.strftime("%d/%m/%Y"), desc, out_, in_, f"{balance:,.2f}"])
+    table = Table(data, colWidths=[62, 250, 62, 62, 70], repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONT", (0, 0), (-1, -1), "Helvetica", 8),
+                ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
+            ]
+        )
+    )
+    doc = SimpleDocTemplate(str(path), pagesize=A4, title="Bean & Bloom Cafe statement")
+    doc.build(
+        [
+            Paragraph("Demo Bank plc — Business Current Account", styles["Title"]),
+            Paragraph(
+                "Bean &amp; Bloom Café Ltd · Sort code 20-44-91 · January 2026", styles["Normal"]
+            ),
+            Paragraph(f"Balance brought forward: £{OPENING_BALANCE:,.2f}", styles["Normal"]),
+            Spacer(1, 12),
+            table,
+        ]
+    )
+    print(f"Wrote {path}")
+
+
+def _first(rows, needle: str):
+    return next(r for r in rows if needle in r[1])
+
+
+def write_receipts(rows) -> None:
+    from PIL import Image, ImageDraw, ImageFont
+
+    folder = OUT.parent / "receipts"
+    folder.mkdir(parents=True, exist_ok=True)
+
+    # 1. Phone-photo style PNG receipt for a Screwfix purchase in the statement
+    d, _, amt = _first(rows, "SCREWFIX")
+    total = -amt
+    net = (total / Decimal("1.2")).quantize(Decimal("0.01"))
+    lines = [
+        "SCREWFIX",
+        "Unit 3 Trade Park, London",
+        "VAT No. GB 232 1234 56",
+        "",
+        f"Date: {d:%d/%m/%Y}  10:42",
+        "",
+        f"Sealant & fixings      {net:>8.2f}",
+        f"Subtotal               {net:>8.2f}",
+        f"VAT 20%                {total - net:>8.2f}",
+        f"TOTAL                  {total:>8.2f}",
+        "",
+        "Paid by card",
+        "Thank you for shopping",
+    ]
+    font = ImageFont.load_default(size=30)
+    img = Image.new("RGB", (720, 70 + 46 * len(lines)), "white")
+    draw = ImageDraw.Draw(img)
+    for i, line in enumerate(lines):
+        draw.text((40, 35 + i * 46), line, fill="black", font=font)
+    img.save(folder / "receipt_screwfix.png")
+
+    # 2. PDF receipt for a Makro purchase
+    from reportlab.lib.pagesizes import A6
+    from reportlab.pdfgen import canvas
+
+    d, _, amt = _first(rows, "MAKRO")
+    c = canvas.Canvas(str(folder / "receipt_makro.pdf"), pagesize=A6)
+    y = 380
+    for line in [
+        "MAKRO Cash & Carry",
+        "Charlton, London",
+        f"Date: {d:%d/%m/%Y}",
+        "",
+        f"Catering supplies   £{-amt:.2f}",
+        f"TOTAL               £{-amt:.2f}",
+        "VAT                 £0.00",
+    ]:
+        c.setFont("Helvetica", 10)
+        c.drawString(20, y, line)
+        y -= 16
+    c.save()
+    print(f"Wrote receipts to {folder}")
+
+
+def write_invoices(rows) -> None:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    folder = OUT.parent / "invoices"
+    folder.mkdir(parents=True, exist_ok=True)
+    paid_date, _, paid_amt = _first(rows, "GREEN LTD")
+    invoices = [
+        # (number, client, email, issue, due, gross) — first one is paid in the statement
+        (
+            "INV-2026-014",
+            "Green Ltd",
+            "accounts@greenltd.example",
+            paid_date - dt.timedelta(days=12),
+            paid_date + dt.timedelta(days=2),
+            paid_amt,
+        ),
+        (
+            "INV-2026-021",
+            "Riverside Book Club",
+            "treasurer@riverside.example",
+            dt.date(2026, 5, 6),
+            dt.date(2026, 6, 5),
+            Decimal("486.00"),
+        ),
+    ]
+    for number, client, email, issue, due, gross in invoices:
+        net = (gross / Decimal("1.2")).quantize(Decimal("0.01"))
+        c = canvas.Canvas(str(folder / f"{number}.pdf"), pagesize=A4)
+        c.setFont("Helvetica-Bold", 18)
+        c.drawString(50, 790, "Bean & Bloom Café Ltd")
+        c.setFont("Helvetica", 10)
+        c.drawString(50, 774, "12 High Street, London · hello@beanandbloom.example")
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(50, 735, "INVOICE")
+        c.setFont("Helvetica", 10)
+        y = 712
+        for line in [
+            f"Invoice No: {number}",
+            f"Invoice Date: {issue:%d/%m/%Y}",
+            f"Due Date: {due:%d/%m/%Y}",
+            "",
+            "Bill To:",
+            client,
+            email,
+            "",
+            "Event catering and room hire",
+            f"Subtotal: £{net:,.2f}",
+            f"VAT (20%): £{gross - net:,.2f}",
+            f"Amount Due: £{gross:,.2f}",
+            "",
+            "Bank transfer to Bean & Bloom Café Ltd, sort code 20-44-91. Thank you!",
+        ]:
+            c.drawString(50, y, line)
+            y -= 16
+        c.save()
+    print(f"Wrote invoices to {folder}")
+
+
+def main() -> None:
+    rows = generate_rows()
+    write_csv(rows)
+    write_pdf_statement(rows)
+    write_receipts(rows)
+    write_invoices(rows)
 
 
 if __name__ == "__main__":

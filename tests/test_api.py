@@ -38,6 +38,7 @@ def test_same_day_identical_lines_are_kept(client):
 
 def test_rejects_unsupported_and_bad_files(client):
     assert _upload(client, b"x", name="statement.xlsx").status_code == 415
+    assert _upload(client, b"%PDF-1.4 broken", name="s.pdf").status_code == 422
     assert _upload(client, b"hello,world\n1,2\n").status_code == 422
     assert _upload(client, b"").status_code == 400
 

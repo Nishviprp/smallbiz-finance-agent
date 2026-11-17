@@ -30,11 +30,18 @@ class Settings(BaseSettings):
     llm_batch_size: int = 25
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
+    # Optional: reads receipt/invoice photos directly (e.g. llama3.2-vision). Empty = use OCR.
+    ollama_vision_model: str = ""
     openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-haiku-5-5"
+
+    # Invoices: warn about invoices due within this many days
+    invoice_alert_days: int = 7
+    # Receipt ↔ bank transaction matching window
+    receipt_match_days: int = 5
 
     # API
     cors_origins: str = "*"

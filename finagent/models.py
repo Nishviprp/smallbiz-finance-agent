@@ -82,3 +82,58 @@ class CategoryRule(Base):
     category: Mapped[Category] = relationship(lazy="joined")
     priority: Mapped[int] = mapped_column(Integer, default=100)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Receipt(Base):
+    """A purchase receipt (photo or PDF), optionally linked to the bank transaction it explains."""
+
+    __tablename__ = "receipts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    upload_id: Mapped[int | None] = mapped_column(
+        ForeignKey("uploads.id", ondelete="SET NULL"), nullable=True
+    )
+    vendor: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    date: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)
+    total: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    tax: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3))
+    transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    extraction_method: Mapped[str] = mapped_column(String(32), default="none")
+    raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+INVOICE_STATUSES = ("unpaid", "paid", "void")
+
+
+class Invoice(Base):
+    """A sales invoice you issued (money owed to you)."""
+
+    __tablename__ = "invoices"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    client: Mapped[str] = mapped_column(String(200))
+    client_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    issue_date: Mapped[dt.date] = mapped_column(Date, index=True)
+    due_date: Mapped[dt.date] = mapped_column(Date, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))  # gross, incl. tax
+    tax: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3))
+    status: Mapped[str] = mapped_column(String(16), default="unpaid", index=True)
+    paid_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True
+    )
+    upload_id: Mapped[int | None] = mapped_column(
+        ForeignKey("uploads.id", ondelete="SET NULL"), nullable=True
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )

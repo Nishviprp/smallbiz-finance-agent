@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .api import categories, rules, transactions, uploads
+from .api import categories, invoices, receipts, rules, transactions, uploads
 from .config import get_settings
 from .db import init_db
 
@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
     def health():
         return {"status": "ok", "version": __version__, "llm_provider": settings.llm_provider}
 
-    for r in (uploads, transactions, categories, rules):
+    for r in (uploads, transactions, categories, rules, receipts, invoices):
         app.include_router(r.router)
     return app
 
