@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
-> 🚧 **Status: under active development (Phase 2 of 5 complete).** See [Roadmap](#roadmap).
+> 🚧 **Status: under active development (Phase 3 of 5 complete).** See [Roadmap](#roadmap).
 
 ## The problem
 
@@ -32,7 +32,8 @@ rules first, then a local LLM), and learns from your corrections — your data s
 | 🧾 | **Receipts** from photos or PDFs (vision AI → OCR → patterns), auto-linked to the bank line | ✅ |
 | 📨 | **Invoices** from PDF/photo or manual entry; auto-marked **paid** when the money lands | ✅ |
 | ⏰ | Unpaid invoice tracker: overdue / due-soon alerts, aging buckets (1-30, 31-60, 61-90, 90+) | ✅ |
-| 📊 | Dashboard: P&L, cash flow, top expenses, monthly trends, KPIs | 🔜 Phase 3 |
+| 📊 | **Dashboard**: KPIs vs previous period, money in/out, net profit, top categories & suppliers, trends | ✅ |
+| ✍️ | Review & fix categories in a spreadsheet-style table — the agent learns rules as you go | ✅ |
 | 🧾 | Tax-ready export (CSV / PDF) | 🔜 Phase 4 |
 | 💬 | Chat with your books in plain English | 🔜 Phase 4 |
 | 🐳 | One-command Docker Compose run | 🔜 Phase 5 |
@@ -49,12 +50,22 @@ cp .env.example .env            # Windows: copy .env.example .env
 uvicorn finagent.main:app --reload
 ```
 
-Open **http://localhost:8000/docs** and try the demo café files in `sample_data/`:
+In a second terminal, start the dashboard:
 
-1. `POST /uploads/statement` → `bank_statement_cafe.csv` (6 months) or `.pdf` (January)
-2. `POST /uploads/receipt` → `receipts/receipt_screwfix.png` — linked to its bank line automatically
-3. `POST /uploads/invoice` → `invoices/INV-2026-014.pdf` — instantly **paid** (payment is in the statement)
-4. `POST /uploads/invoice` → `invoices/INV-2026-021.pdf` — then `GET /invoices/alerts` shows it **overdue**
+```bash
+pip install -r dashboard/requirements.txt
+streamlit run dashboard/app.py
+```
+
+Open **http://localhost:8501** → **Upload** → import `sample_data/bank_statement_cafe.csv`.
+(The API docs are at http://localhost:8000/docs.)
+
+Demo café files in `sample_data/`:
+
+1. **Bank statement** → `bank_statement_cafe.csv` (6 months) or `.pdf` (January)
+2. **Receipt** → `receipts/receipt_screwfix.png` — linked to its bank line automatically
+3. **Sales invoice** → `invoices/INV-2026-014.pdf` — instantly **paid** (payment is in the statement)
+4. **Sales invoice** → `invoices/INV-2026-021.pdf` — shows up **overdue** on the Invoices page
 
 ### OCR for receipt photos (optional)
 
@@ -74,6 +85,13 @@ ollama pull llama3.1:8b
 
 No Ollama? Set `LLM_PROVIDER=none` — built-in keyword rules still categorize most lines — or use
 `LLM_PROVIDER=openai` / `anthropic` with your own API key.
+
+## How the numbers are calculated
+
+Cash basis, the way most micro-businesses report. **Income** and **expenses** come from
+income/expense categories (a refund in an expense category reduces it). **Transfers, owner
+drawings and loans** move cash but never count as profit or loss. Uncategorized lines count by
+direction until you review them — the dashboard tells you how many there are.
 
 ## How categorization works
 
@@ -101,6 +119,9 @@ Transactions you edit by hand are never overwritten.
 | `POST` | `/invoices/{id}/mark-paid` | Mark paid manually (optionally link a transaction) |
 | `GET` | `/invoices/alerts` | Overdue + due-soon invoices, totals and aging |
 | `GET/PATCH/DELETE` | `/receipts` | Review and correct receipts |
+| `GET` | `/reports/summary` | KPIs for a period + change vs the previous period |
+| `GET` | `/reports/monthly` · `/reports/pnl` | Monthly cash flow and profit & loss by category |
+| `GET` | `/reports/top-expenses` · `/reports/category-trends` | Where the money goes |
 
 ## Development
 
@@ -116,7 +137,7 @@ Regenerate the demo data: `python scripts/generate_sample_data.py`
 
 - [x] **Phase 1** – Core: CSV import, dedupe, AI categorization, learning rules, API, tests, CI
 - [x] **Phase 2** – PDF statements, receipt OCR, invoices + unpaid tracker & alerts
-- [ ] **Phase 3** – Streamlit dashboard: P&L, cash flow, top expenses, trends, KPIs
+- [x] **Phase 3** – Streamlit dashboard: P&L, cash flow, top expenses, trends, KPIs
 - [ ] **Phase 4** – Tax-ready export (CSV/PDF), chat with your books
 - [ ] **Phase 5** – Docker Compose one-command run, Postgres option, v0.1.0 release
 

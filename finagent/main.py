@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .api import categories, invoices, receipts, rules, transactions, uploads
+from .api import categories, invoices, receipts, reports, rules, transactions, uploads
 from .config import get_settings
 from .db import init_db
 
@@ -39,9 +39,14 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["meta"])
     def health():
-        return {"status": "ok", "version": __version__, "llm_provider": settings.llm_provider}
+        return {
+            "status": "ok",
+            "version": __version__,
+            "llm_provider": settings.llm_provider,
+            "currency": settings.currency,
+        }
 
-    for r in (uploads, transactions, categories, rules, receipts, invoices):
+    for r in (uploads, transactions, categories, rules, receipts, invoices, reports):
         app.include_router(r.router)
     return app
 
