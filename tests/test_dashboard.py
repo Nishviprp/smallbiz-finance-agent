@@ -19,6 +19,8 @@ PAGES = [
     "views/receipts.py",
     "views/upload.py",
     "views/categories.py",
+    "views/chat.py",
+    "views/export.py",
 ]
 
 

@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
-> 🚧 **Status: under active development (Phase 3 of 5 complete).** See [Roadmap](#roadmap).
+> 🚧 **Status: under active development (Phase 4 of 5 complete).** See [Roadmap](#roadmap).
 
 ## The problem
 
@@ -34,8 +34,8 @@ rules first, then a local LLM), and learns from your corrections — your data s
 | ⏰ | Unpaid invoice tracker: overdue / due-soon alerts, aging buckets (1-30, 31-60, 61-90, 90+) | ✅ |
 | 📊 | **Dashboard**: KPIs vs previous period, money in/out, net profit, top categories & suppliers, trends | ✅ |
 | ✍️ | Review & fix categories in a spreadsheet-style table — the agent learns rules as you go | ✅ |
-| 🧾 | Tax-ready export (CSV / PDF) | 🔜 Phase 4 |
-| 💬 | Chat with your books in plain English | 🔜 Phase 4 |
+| 🧾 | **Tax-ready export**: PDF tax pack + CSV ledger + category summary, as one ZIP for your accountant | ✅ |
+| 💬 | **Chat with your books** in plain English — works offline, AI optional, never invents numbers | ✅ |
 | 🐳 | One-command Docker Compose run | 🔜 Phase 5 |
 
 ## Quickstart (local, Python 3.10+)
@@ -93,6 +93,24 @@ income/expense categories (a refund in an expense category reduces it). **Transf
 drawings and loans** move cash but never count as profit or loss. Uncategorized lines count by
 direction until you review them — the dashboard tells you how many there are.
 
+## Chat with your books
+
+Ask *"How much did we spend on wages this year?"*, *"How much have we paid Bookers since March?"*
+or *"Which invoices are overdue?"*.
+
+- The AI **never writes SQL or touches your data**. It only picks one of a few read-only
+  question types (summary, category total, supplier search, top expenses, monthly, invoices,
+  uncategorized); our code calculates every number, and the AI words the answer from those numbers.
+- With no AI configured, a built-in rule engine answers the same questions — fully offline.
+- Follow-ups work: *"…and in March?"*
+
+## Tax export
+
+Pick a tax year (set `TAX_YEAR_START`, e.g. `04-06` for the UK) and download a ZIP with a PDF tax
+pack, the full transaction ledger (with each line's tax treatment) and a category summary.
+Categories marked *not tax deductible* (e.g. client entertainment) are listed but not claimed;
+uncategorized spending is **not** claimed until you review it.
+
 ## How categorization works
 
 1. **Your rules** — created automatically when you correct a transaction with `remember: true`.
@@ -122,6 +140,8 @@ Transactions you edit by hand are never overwritten.
 | `GET` | `/reports/summary` | KPIs for a period + change vs the previous period |
 | `GET` | `/reports/monthly` · `/reports/pnl` | Monthly cash flow and profit & loss by category |
 | `GET` | `/reports/top-expenses` · `/reports/category-trends` | Where the money goes |
+| `POST` | `/chat` | Ask a question about your books |
+| `GET` | `/export/tax-pack.zip` · `.pdf` · `/export/transactions.csv` | Tax-ready exports |
 
 ## Development
 
@@ -138,7 +158,7 @@ Regenerate the demo data: `python scripts/generate_sample_data.py`
 - [x] **Phase 1** – Core: CSV import, dedupe, AI categorization, learning rules, API, tests, CI
 - [x] **Phase 2** – PDF statements, receipt OCR, invoices + unpaid tracker & alerts
 - [x] **Phase 3** – Streamlit dashboard: P&L, cash flow, top expenses, trends, KPIs
-- [ ] **Phase 4** – Tax-ready export (CSV/PDF), chat with your books
+- [x] **Phase 4** – Tax-ready export (CSV/PDF), chat with your books
 - [ ] **Phase 5** – Docker Compose one-command run, Postgres option, v0.1.0 release
 
 ## License

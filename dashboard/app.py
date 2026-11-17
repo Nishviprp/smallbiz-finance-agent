@@ -25,6 +25,8 @@ pages = {
         st.Page(VIEWS / "transactions.py", title="Transactions", icon=":material/receipt_long:"),
         st.Page(VIEWS / "invoices.py", title="Invoices", icon=":material/request_quote:"),
         st.Page(VIEWS / "receipts.py", title="Receipts", icon=":material/receipt:"),
+        st.Page(VIEWS / "chat.py", title="Ask your books", icon=":material/chat:"),
+        st.Page(VIEWS / "export.py", title="Tax export", icon=":material/download:"),
     ],
     "Manage": [
         st.Page(VIEWS / "upload.py", title="Upload", icon=":material/upload_file:"),

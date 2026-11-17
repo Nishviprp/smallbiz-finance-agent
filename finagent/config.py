@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     max_upload_mb: int = 20
 
     # Business defaults
+    business_name: str = "My Business"
     currency: str = "GBP"
+    # First day of your tax year as MM-DD: 01-01 (US & most countries), 04-06 (UK), 07-01 (AU)
+    tax_year_start: str = "01-01"
     # Used only when a statement's dates are ambiguous (e.g. 03/04/2026).
     date_dayfirst: bool = True
 
