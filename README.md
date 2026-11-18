@@ -1,169 +1,213 @@
 # SmallBiz Finance Agent
 
-**Open-source AI bookkeeping for shops, cafés, freelancers and agencies — runs free on your own machine.**
+**Open-source AI bookkeeping for shops, cafés, freelancers and agencies — free, and it runs on your own machine.**
 
 [![CI](https://github.com/Nishviprp/smallbiz-finance-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Nishviprp/smallbiz-finance-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Docker](https://img.shields.io/badge/docker-compose-2496ED)
 
-> 🚧 **Status: under active development (Phase 4 of 5 complete).** See [Roadmap](#roadmap).
+Drop in your bank statements, receipts and invoices. The agent categorizes every transaction,
+tracks who owes you money, shows where your cash goes, answers questions in plain English and
+hands you a tax-ready pack at year end.
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="SmallBiz Finance Agent demo: overview, transactions, invoices, chat and tax export" width="900">
+</p>
 
 ## The problem
 
 Small-business owners lose hours every month copying bank lines into spreadsheets, guessing
-categories, chasing unpaid invoices and scrambling at tax time. Accounting SaaS costs money every
-month and sends your financial data to someone else's cloud.
+categories, chasing unpaid invoices and scrambling at tax time. Accounting software costs money
+every month and sends your financial data to someone else's cloud.
 
-**SmallBiz Finance Agent** imports your bank statements, categorizes every transaction (offline
-rules first, then a local LLM), and learns from your corrections — your data stays on your machine.
-
-<!-- Demo GIF goes here -->
-<p align="center"><i>Demo GIF coming soon</i></p>
+SmallBiz Finance Agent does the bookkeeping grunt work for free, **locally**. Rules and a local
+LLM (via Ollama) categorize transactions; OpenAI or Claude are optional. Every number is computed
+by code — the AI never makes figures up.
 
 ## Features
 
-| | Feature | Status |
-|---|---|---|
-| 📥 | Import bank statements from **any bank's CSV** (debit/credit or signed amounts, UK/US/EU formats) | ✅ |
-| 🔁 | Safe re-imports — duplicate lines are detected and skipped | ✅ |
-| 🤖 | AI categorization: your rules → built-in merchant keywords → LLM (Ollama / OpenAI / Claude) | ✅ |
-| ✏️ | Editable categories; fix one transaction and it **learns a rule** for the rest | ✅ |
-| 📄 | **PDF bank statements** (tables or text, sign fixed from running balance; AI fallback) | ✅ |
-| 🧾 | **Receipts** from photos or PDFs (vision AI → OCR → patterns), auto-linked to the bank line | ✅ |
-| 📨 | **Invoices** from PDF/photo or manual entry; auto-marked **paid** when the money lands | ✅ |
-| ⏰ | Unpaid invoice tracker: overdue / due-soon alerts, aging buckets (1-30, 31-60, 61-90, 90+) | ✅ |
-| 📊 | **Dashboard**: KPIs vs previous period, money in/out, net profit, top categories & suppliers, trends | ✅ |
-| ✍️ | Review & fix categories in a spreadsheet-style table — the agent learns rules as you go | ✅ |
-| 🧾 | **Tax-ready export**: PDF tax pack + CSV ledger + category summary, as one ZIP for your accountant | ✅ |
-| 💬 | **Chat with your books** in plain English — works offline, AI optional, never invents numbers | ✅ |
-| 🐳 | One-command Docker Compose run | 🔜 Phase 5 |
+| | |
+|---|---|
+| 📥 **Any bank, any format** | CSV from any bank (signed amounts, debit/credit or money-in/out columns, UK/US/EU dates and decimals) and **PDF statements**. Re-importing is safe — duplicates are skipped. |
+| 🤖 **AI categorization that learns** | Your rules → ~240 built-in merchant keywords → LLM. Fix one transaction and it learns a rule for all similar ones. Hand edits are never overwritten. |
+| 🧾 **Receipts** | Photo or PDF → vision AI, OCR or pattern matching → vendor, date, total, tax — auto-linked to the bank payment. |
+| 📨 **Unpaid invoice tracker** | Upload sales invoices (PDF/photo) or add them by hand. Marked **paid** automatically when the money lands; overdue and due-soon alerts; aging buckets. |
+| 📊 **Dashboard** | Income, expenses, net profit and cash flow vs the previous period, money in vs out, top categories and suppliers, trends, a full profit & loss statement. |
+| 💬 **Chat with your books** | *"How much have we paid Bookers since March?"* — answered from your data. Works offline without AI. |
+| 🧾 **Tax-ready export** | Pick a tax year → ZIP with a PDF tax pack, the full ledger with each line's tax treatment and a category summary for your accountant. |
+| 🔒 **Private by default** | SQLite file on your disk (Postgres optional). No accounts, no telemetry. |
 
-## Quickstart (local, Python 3.10+)
+<table>
+  <tr>
+    <td><img src="docs/images/overview-charts.png" alt="Dashboard charts"></td>
+    <td><img src="docs/images/transactions.png" alt="Transactions review table"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/invoices.png" alt="Unpaid invoice alerts"></td>
+    <td><img src="docs/images/tax-export.png" alt="Tax export"></td>
+  </tr>
+</table>
+
+## Quickstart
+
+### Option A — Docker (one command)
+
+```bash
+git clone https://github.com/Nishviprp/smallbiz-finance-agent.git
+cd smallbiz-finance-agent
+docker compose up -d
+```
+
+Open **http://localhost:8501** → **Upload** → import `sample_data/bank_statement_cafe.csv`.
+
+Add free local AI (downloads the model once, ~5 GB):
+
+```bash
+docker compose --profile ai up -d
+docker compose exec ollama ollama pull llama3.1:8b
+```
+
+Use Postgres instead of SQLite: put
+`DATABASE_URL=postgresql+psycopg://finagent:finagent@db:5432/finagent` in `.env`, then
+`docker compose --profile postgres up -d`.
+
+### Option B — Python (3.10+)
 
 ```bash
 git clone https://github.com/Nishviprp/smallbiz-finance-agent.git
 cd smallbiz-finance-agent
 python -m venv .venv
-# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env            # Windows: copy .env.example .env
-uvicorn finagent.main:app --reload
+# Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.txt -r dashboard/requirements.txt
+cp .env.example .env                   # Windows: copy .env.example .env
 ```
 
-In a second terminal, start the dashboard:
+Then run the API and the dashboard in **two terminals**:
 
 ```bash
-pip install -r dashboard/requirements.txt
-streamlit run dashboard/app.py
+python -m uvicorn finagent.main:app --reload       # terminal 1 → http://localhost:8000/docs
+python -m streamlit run dashboard/app.py           # terminal 2 → http://localhost:8501
 ```
 
-Open **http://localhost:8501** → **Upload** → import `sample_data/bank_statement_cafe.csv`.
-(The API docs are at http://localhost:8000/docs.)
+### Try the demo café
 
-Demo café files in `sample_data/`:
+`sample_data/` holds six months of a fictional café's books:
 
-1. **Bank statement** → `bank_statement_cafe.csv` (6 months) or `.pdf` (January)
-2. **Receipt** → `receipts/receipt_screwfix.png` — linked to its bank line automatically
-3. **Sales invoice** → `invoices/INV-2026-014.pdf` — instantly **paid** (payment is in the statement)
-4. **Sales invoice** → `invoices/INV-2026-021.pdf` — shows up **overdue** on the Invoices page
+1. **Upload → Bank statement** → `bank_statement_cafe.csv` (or the January `.pdf`)
+2. **Upload → Receipt** → `receipts/receipt_screwfix.png` — linked to its bank payment
+3. **Upload → Sales invoice** → `invoices/INV-2026-014.pdf` — instantly **paid** (the payment is in the statement)
+4. **Upload → Sales invoice** → `invoices/INV-2026-021.pdf` — flagged **overdue**
+5. **Ask your books** → *"What are our biggest expenses?"*
 
-### OCR for receipt photos (optional)
+### Optional extras
 
-Install [Tesseract](https://tesseract-ocr.github.io/tessdoc/Installation.html):
-Windows — [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki) ·
-macOS — `brew install tesseract` · Linux — `sudo apt install tesseract-ocr`.
-Or skip it and set `OLLAMA_VISION_MODEL=llama3.2-vision` (or use OpenAI/Claude) to read photos with AI.
-PDFs with a text layer need neither.
+- **Free local AI** — install [Ollama](https://ollama.com) and run `ollama pull llama3.1:8b`.
+  Without it, set `LLM_PROVIDER=none`: built-in keywords still categorize ~88% of the demo lines,
+  and chat still works.
+- **Paid AI** — `LLM_PROVIDER=openai` + `OPENAI_API_KEY`, or `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`.
+- **Receipt photos** — install [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html)
+  (Windows: [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki)), or set
+  `OLLAMA_VISION_MODEL=llama3.2-vision`. PDFs with a text layer need neither. Docker includes Tesseract.
 
-### Free local AI (optional)
+## Configuration
 
-Install [Ollama](https://ollama.com), then:
+Copy `.env.example` to `.env`. The most useful settings:
 
-```bash
-ollama pull llama3.1:8b
+| Variable | Default | What it does |
+|---|---|---|
+| `BUSINESS_NAME` | `My Business` | Shown on the tax pack |
+| `CURRENCY` | `GBP` | Currency for display and exports |
+| `TAX_YEAR_START` | `01-01` | First day of your tax year (`04-06` UK, `07-01` Australia) |
+| `DATE_DAYFIRST` | `true` | Only for ambiguous dates like `03/04/2026` (otherwise detected per file) |
+| `LLM_PROVIDER` | `ollama` | `ollama` · `openai` · `anthropic` · `none` |
+| `DATABASE_URL` | SQLite in `./data` | Any SQLAlchemy URL, e.g. Postgres |
+| `INVOICE_ALERT_DAYS` | `7` | "Due soon" window |
+
+## How it works
+
+```
+CSV / PDF statement ─┐                      ┌─► Dashboard (Streamlit)
+Receipt photo / PDF ─┼─► FastAPI ─► SQLite ─┼─► Chat with your books
+Sales invoice PDF  ──┘   │  ▲       / Postgres └─► Tax pack (PDF + CSV + ZIP)
+                         ▼  │
+              rules → keywords → LLM (Ollama / OpenAI / Claude)
 ```
 
-No Ollama? Set `LLM_PROVIDER=none` — built-in keyword rules still categorize most lines — or use
-`LLM_PROVIDER=openai` / `anthropic` with your own API key.
+**Categorization.** 1) Your rules, created automatically when you correct a transaction.
+2) Built-in keywords for common UK/US merchants (SumUp, Bookers, HMRC, AWS, Uber…), instant and
+offline. 3) The LLM, in batches; every answer is checked against your category list and the
+money-in/money-out direction before it is saved. Anything still unknown stays **uncategorized**
+for you to review — it is never silently guessed.
 
-## How the numbers are calculated
+**The numbers.** Cash basis, the way most micro-businesses report. Income and expenses come from
+income/expense categories (a refund in an expense category reduces it). Transfers, owner drawings
+and loans move cash but never count as profit or loss.
 
-Cash basis, the way most micro-businesses report. **Income** and **expenses** come from
-income/expense categories (a refund in an expense category reduces it). **Transfers, owner
-drawings and loans** move cash but never count as profit or loss. Uncategorized lines count by
-direction until you review them — the dashboard tells you how many there are.
+**Chat.** The AI never writes SQL or touches your data. It only picks one of a few read-only
+question types (summary, category total, supplier search, top expenses, monthly, invoices,
+uncategorized); code computes every number and the AI words the answer from those numbers.
+Without AI, a rule engine answers the same questions. Follow-ups like *"…and in March?"* work.
 
-## Chat with your books
+**Tax pack.** Categories marked *not tax deductible* (e.g. client entertainment) are listed but
+not claimed; uncategorized spending is **not** claimed until you review it; unpaid invoices at
+year end are listed separately for accruals-basis filers.
 
-Ask *"How much did we spend on wages this year?"*, *"How much have we paid Bookers since March?"*
-or *"Which invoices are overdue?"*.
+## API
 
-- The AI **never writes SQL or touches your data**. It only picks one of a few read-only
-  question types (summary, category total, supplier search, top expenses, monthly, invoices,
-  uncategorized); our code calculates every number, and the AI words the answer from those numbers.
-- With no AI configured, a built-in rule engine answers the same questions — fully offline.
-- Follow-ups work: *"…and in March?"*
-
-## Tax export
-
-Pick a tax year (set `TAX_YEAR_START`, e.g. `04-06` for the UK) and download a ZIP with a PDF tax
-pack, the full transaction ledger (with each line's tax treatment) and a category summary.
-Categories marked *not tax deductible* (e.g. client entertainment) are listed but not claimed;
-uncategorized spending is **not** claimed until you review it.
-
-## How categorization works
-
-1. **Your rules** — created automatically when you correct a transaction with `remember: true`.
-2. **Built-in keywords** — ~240 common UK/US merchants (SumUp, Bookers, HMRC, AWS, Uber…), instant and offline.
-3. **LLM** — remaining lines are sent in batches; answers are validated against your category list
-   and money-in/money-out direction before being saved.
-4. Anything still unknown stays **uncategorized** for you to review — never silently guessed.
-
-Transactions you edit by hand are never overwritten.
-
-## API overview
+Interactive docs at **http://localhost:8000/docs**.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/uploads/statement` | Import a bank statement (CSV or PDF) |
-| `POST` | `/uploads/receipt` | Read a receipt photo/PDF and link it to its transaction |
-| `POST` | `/uploads/invoice` | Read a sales invoice and add it to the unpaid tracker |
-| `GET` | `/transactions` | List / filter (date, category, direction, search, uncategorized) |
-| `PATCH` | `/transactions/{id}` | Change category / notes, optionally learn a rule |
+| `POST` | `/uploads/statement` · `/uploads/receipt` · `/uploads/invoice` | Import files |
+| `GET` `PATCH` | `/transactions` · `/transactions/{id}` | List / filter; fix a category (optionally learn a rule) |
 | `POST` | `/transactions/recategorize` | Re-run categorization |
-| `GET/POST/PATCH/DELETE` | `/categories` | Manage your chart of accounts |
-| `GET/POST/DELETE` | `/rules` | Manage categorization rules |
-| `GET/POST/PATCH/DELETE` | `/invoices` | Track invoices (`?status=unpaid\|overdue\|paid`) |
-| `POST` | `/invoices/{id}/mark-paid` | Mark paid manually (optionally link a transaction) |
-| `GET` | `/invoices/alerts` | Overdue + due-soon invoices, totals and aging |
-| `GET/PATCH/DELETE` | `/receipts` | Review and correct receipts |
-| `GET` | `/reports/summary` | KPIs for a period + change vs the previous period |
-| `GET` | `/reports/monthly` · `/reports/pnl` | Monthly cash flow and profit & loss by category |
-| `GET` | `/reports/top-expenses` · `/reports/category-trends` | Where the money goes |
+| `GET` `POST` `PATCH` `DELETE` | `/categories` · `/rules` | Chart of accounts and rules |
+| `GET` `POST` `PATCH` `DELETE` | `/invoices` · `/receipts` | Invoices (incl. `/invoices/alerts`, `/mark-paid`) and receipts |
+| `GET` | `/reports/summary` · `/monthly` · `/pnl` · `/top-expenses` · `/category-trends` | Reports |
 | `POST` | `/chat` | Ask a question about your books |
 | `GET` | `/export/tax-pack.zip` · `.pdf` · `/export/transactions.csv` | Tax-ready exports |
 
 ## Development
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+python -m pip install -r requirements-dev.txt
+pytest                                   # 110+ tests: SQLite by default
+TEST_DATABASE_URL=postgresql+psycopg://user:pass@localhost/db pytest   # or against Postgres
 ruff check . && ruff format --check .
+python scripts/generate_sample_data.py   # rebuild the demo data
 ```
 
-Regenerate the demo data: `python scripts/generate_sample_data.py`
+CI runs the suite on Python 3.10–3.12, against Postgres 16, and boots the full Docker Compose
+stack for an end-to-end smoke test. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+```
+finagent/           FastAPI backend
+  api/              routes: uploads, transactions, categories, rules, invoices, receipts, reports, chat, export
+  ingest/           bank CSV, PDF statements, OCR / text extraction
+  services/         categorizer, LLM clients, importer, analytics, invoices, receipts, chat, export
+dashboard/          Streamlit UI (views/ = one file per page)
+docker/             Dockerfiles · docker-compose.yml at the root
+sample_data/        demo café: statement (CSV + PDF), receipts, invoices
+tests/              pytest suite (API, parsers, categorizer, reports, chat, export, dashboard pages)
+```
 
 ## Roadmap
 
-- [x] **Phase 1** – Core: CSV import, dedupe, AI categorization, learning rules, API, tests, CI
-- [x] **Phase 2** – PDF statements, receipt OCR, invoices + unpaid tracker & alerts
-- [x] **Phase 3** – Streamlit dashboard: P&L, cash flow, top expenses, trends, KPIs
-- [x] **Phase 4** – Tax-ready export (CSV/PDF), chat with your books
-- [ ] **Phase 5** – Docker Compose one-command run, Postgres option, v0.1.0 release
+- [x] **v0.1.0** — CSV/PDF import, AI categorization with learning rules, receipts & OCR,
+  invoice tracker with auto-matching, dashboard, chat with your books, tax export, Docker
+- [ ] Email reminders for overdue invoices (SMTP)
+- [ ] Partial invoice payments and credit notes
+- [ ] VAT / sales-tax returns (UK MTD, US sales tax summaries)
+- [ ] Multi-currency accounts
+- [ ] Bank feeds via open-banking providers (GoCardless, Plaid)
+- [ ] Database migrations (Alembic) and multi-user login
+
+Ideas and pull requests are welcome — open an issue.
 
 ## License
 
 [MIT](LICENSE) — free for personal and commercial use.
 
-> ⚠️ This tool helps you organise your books; it is not tax or accounting advice. Check with a
-> qualified accountant before filing.
+> ⚠️ This tool organises your records; it is not tax, legal or accounting advice. Have a qualified
+> accountant review your figures before filing.

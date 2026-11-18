@@ -1,6 +1,7 @@
 """SmallBiz Finance Agent — Streamlit dashboard.
 
-Run:  streamlit run dashboard/app.py      (API must be running: uvicorn finagent.main:app)
+Run:  python -m streamlit run dashboard/app.py
+      (the API must be running: python -m uvicorn finagent.main:app)
 """
 
 from __future__ import annotations
@@ -43,7 +44,9 @@ with st.sidebar:
         st.caption(f"API connected · AI: **{provider}** · {health.get('version', '')}")
     except api.APIError as exc:
         st.error(
-            f"{exc}\n\nStart it with `uvicorn finagent.main:app`.", icon=":material/cloud_off:"
+            f"{exc}\n\nStart it with `python -m uvicorn finagent.main:app`, "
+            "or set `API_URL` if it runs elsewhere.",
+            icon=":material/cloud_off:",
         )
         st.stop()
 

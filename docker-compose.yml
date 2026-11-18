@@ -1,0 +1,77 @@
+# One-command run:            docker compose up -d       → http://localhost:8501
+# With free local AI:         docker compose --profile ai up -d
+# With Postgres instead of SQLite:
+#   set DATABASE_URL=postgresql+psycopg://finagent:finagent@db:5432/finagent in .env, then
+#   docker compose --profile postgres up -d
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: smallbiz-finance-agent-api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/finagent.db}
+      UPLOAD_DIR: /app/data/uploads
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      # "ollama" = the container from the ai profile. If Ollama runs on your computer instead,
+      # set DOCKER_OLLAMA_URL=http://host.docker.internal:11434 in .env
+      OLLAMA_BASE_URL: ${DOCKER_OLLAMA_URL:-http://ollama:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - finagent-data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false # only when the postgres profile is on
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    image: smallbiz-finance-agent-dashboard
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Free local LLM. Pull a model once:  docker compose exec ollama ollama pull llama3.1:8b
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: finagent
+      POSTGRES_PASSWORD: finagent
+      POSTGRES_DB: finagent
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finagent"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  finagent-data:
+  ollama-models:
+  postgres-data:
