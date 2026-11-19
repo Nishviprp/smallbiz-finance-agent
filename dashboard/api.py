@@ -73,6 +73,10 @@ def post(path: str, json: Any = None, **kw) -> Any:
     return request("POST", path, json=json, **kw)
 
 
+def put(path: str, json: Any) -> Any:
+    return request("PUT", path, json=json)
+
+
 def patch(path: str, json: Any) -> Any:
     return request("PATCH", path, json=json)
 

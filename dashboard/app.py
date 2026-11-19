@@ -32,6 +32,7 @@ pages = {
     "Manage": [
         st.Page(VIEWS / "upload.py", title="Upload", icon=":material/upload_file:"),
         st.Page(VIEWS / "categories.py", title="Categories & rules", icon=":material/category:"),
+        st.Page(VIEWS / "settings.py", title="Settings", icon=":material/settings:"),
     ],
 }
 
@@ -39,8 +40,11 @@ with st.sidebar:
     st.markdown("### 📒 SmallBiz Finance Agent")
     try:
         health = api.get("/health")
-        st.session_state.currency = health.get("currency", "GBP")
+        st.session_state.currency = health.get("currency", "USD")
+        st.session_state.date_dayfirst = health.get("date_dayfirst", False)
         provider = health.get("llm_provider", "none")
+        if health.get("setup_complete"):
+            st.caption(f"**{health.get('business_name', '')}** · {health.get('currency', '')}")
         st.caption(f"API connected · AI: **{provider}** · {health.get('version', '')}")
     except api.APIError as exc:
         st.error(
@@ -50,4 +54,10 @@ with st.sidebar:
         )
         st.stop()
 
-st.navigation(pages).run()
+if not health.get("setup_complete"):
+    # First run: only the welcome wizard until the business profile is saved.
+    st.navigation(
+        [st.Page(VIEWS / "setup.py", title="Welcome", icon=":material/waving_hand:")]
+    ).run()
+else:
+    st.navigation(pages).run()

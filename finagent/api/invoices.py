@@ -4,7 +4,7 @@ import datetime as dt
 from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
@@ -17,6 +17,8 @@ from ..schemas import (
     InvoiceUpdate,
     MarkPaidIn,
 )
+from ..services.business import get_profile
+from ..services.ingest import find_invoice_number
 from ..services.invoices import effective_status, invoice_alerts, match_payments
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -74,7 +76,7 @@ def create_invoice(body: InvoiceIn, db: Session = Depends(get_db)):
     data["due_date"] = data["due_date"] or body.issue_date + dt.timedelta(days=30)
     if data["due_date"] < body.issue_date:
         raise HTTPException(422, "Due date cannot be before the issue date")
-    inv = Invoice(**data, currency=get_settings().currency, status="unpaid")
+    inv = Invoice(**data, currency=get_profile(db).currency, status="unpaid")
     db.add(inv)
     db.commit()
     match_payments(db)  # it may already be paid in an imported statement
@@ -128,9 +130,7 @@ def delete_invoice(invoice_id: int, db: Session = Depends(get_db)):
 
 
 def ensure_unique_number(db: Session, number: str | None, exclude_id: int | None = None) -> None:
-    if not number:
-        return
-    existing = db.scalar(select(Invoice).where(func.lower(Invoice.number) == number.lower()))
+    existing = find_invoice_number(db, number)
     if existing and existing.id != exclude_id:
         raise HTTPException(409, f"Invoice {number} already exists (id {existing.id})")
 

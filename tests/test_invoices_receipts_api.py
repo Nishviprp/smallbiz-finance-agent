@@ -31,7 +31,7 @@ def test_pdf_statement_upload_dedupes_against_csv(client):
     )
     assert r.status_code == 200, r.text
     assert r.json()["imported"] == 0
-    assert r.json()["duplicates"] == 58
+    assert r.json()["duplicates"] == 59
 
 
 # ---- Invoices ---------------------------------------------------------------
@@ -44,9 +44,9 @@ def test_invoice_upload_auto_paid_from_statement(client):
     )
     assert r.status_code == 200, r.text
     inv = r.json()
-    assert inv["client"] == "Green Ltd"
+    assert inv["client"] == "Green LLC"
     assert inv["status"] == "paid"
-    assert inv["paid_date"] == "2026-01-18"
+    assert inv["paid_date"] == "2026-02-26"
     assert inv["transaction_id"] is not None
 
     again = _post_file(
@@ -138,19 +138,22 @@ def test_ambiguous_payments_not_auto_matched(client):
 def test_receipt_pdf_links_to_transaction(client):
     _import_statement(client)
     r = _post_file(
-        client, "/uploads/receipt", SAMPLE_DIR / "receipts" / "receipt_makro.pdf", "application/pdf"
+        client,
+        "/uploads/receipt",
+        SAMPLE_DIR / "receipts" / "receipt_costco.pdf",
+        "application/pdf",
     )
     assert r.status_code == 200, r.text
     rec = r.json()
-    assert rec["total"] == 132.91
+    assert rec["total"] == 172.40
     txn = client.get(f"/transactions/{rec['transaction_id']}").json()
-    assert txn["amount"] == -132.91 and "MAKRO" in txn["description"]
+    assert txn["amount"] == -172.40 and "COSTCO" in txn["description"]
 
 
 @needs_ocr
 def test_receipt_photo_links_after_statement_import(client):
     r = _post_file(
-        client, "/uploads/receipt", SAMPLE_DIR / "receipts" / "receipt_screwfix.png", "image/png"
+        client, "/uploads/receipt", SAMPLE_DIR / "receipts" / "receipt_home_depot.png", "image/png"
     )
     assert r.status_code == 200, r.text
     assert r.json()["transaction_id"] is None
@@ -161,11 +164,14 @@ def test_receipt_photo_links_after_statement_import(client):
 
 def test_receipt_edit_and_delete(client):
     r = _post_file(
-        client, "/uploads/receipt", SAMPLE_DIR / "receipts" / "receipt_makro.pdf", "application/pdf"
+        client,
+        "/uploads/receipt",
+        SAMPLE_DIR / "receipts" / "receipt_costco.pdf",
+        "application/pdf",
     )
     rid = r.json()["id"]
-    upd = client.patch(f"/receipts/{rid}", json={"vendor": "Makro Charlton", "notes": "stock"})
-    assert upd.json()["vendor"] == "Makro Charlton"
+    upd = client.patch(f"/receipts/{rid}", json={"vendor": "Costco Bayonne", "notes": "stock"})
+    assert upd.json()["vendor"] == "Costco Bayonne"
     assert client.patch(f"/receipts/{rid}", json={"transaction_id": 99999}).status_code == 404
     assert client.get("/receipts", params={"unlinked": True}).json()[0]["id"] == rid
     assert client.delete(f"/receipts/{rid}").status_code == 204

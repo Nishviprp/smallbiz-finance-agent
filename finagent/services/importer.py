@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..ingest.common import ParsedTxn
 from ..models import Category, CategoryRule, Transaction
+from .business import get_profile
 from .categorizer import Categorizer, TxnInput
 from .llm import get_llm
 
@@ -62,7 +63,7 @@ def import_transactions(
     use_llm: bool = True,
     categorizer: Categorizer | None = None,
 ) -> ImportResult:
-    settings = get_settings()
+    currency = get_profile(db).currency
     result = ImportResult()
 
     seen: Counter[tuple] = Counter()
@@ -100,7 +101,7 @@ def import_transactions(
                 date=r.date,
                 description=r.description[:500],
                 amount=r.amount,
-                currency=settings.currency,
+                currency=currency,
                 account=account,
                 upload_id=upload_id,
                 fingerprint=fp,

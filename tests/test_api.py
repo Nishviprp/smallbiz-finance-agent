@@ -56,7 +56,7 @@ def test_list_filters(client, sample_csv):
     jan = client.get("/transactions", params={"start": "2026-01-01", "end": "2026-01-31"}).json()
     assert all(i["date"].startswith("2026-01") for i in jan["items"])
 
-    found = client.get("/transactions", params={"search": "landlord"}).json()
+    found = client.get("/transactions", params={"search": "property mgmt"}).json()
     assert found["total"] == 6
 
 

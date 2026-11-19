@@ -76,10 +76,13 @@ jobs:
           curl -fsS http://localhost:8000/health
           curl -fsS -F file=@sample_data/bank_statement_cafe.csv -F use_llm=false \
             http://localhost:8000/uploads/statement | grep -q '"imported":337'
-          curl -fsS http://localhost:8000/reports/summary | grep -q '"net_profit":34792.73'
+          curl -fsS http://localhost:8000/reports/summary | grep -q '"net_profit":25067.51'
           curl -fsS -X POST http://localhost:8000/chat -H 'Content-Type: application/json' \
             -d '{"question":"What are our biggest expenses?","use_llm":false}' | grep -q Payroll
           curl -fsS -o /dev/null http://localhost:8000/export/tax-pack.pdf
+          curl -fsS -X POST http://localhost:8000/settings/reset -H 'Content-Type: application/json' \
+            -d '{"confirm":"DELETE"}' | grep -q '"transactions":337'
+          curl -fsS -X POST http://localhost:8000/settings/demo | grep -q '"invoices":2'
           curl -fsS http://localhost:8501/_stcore/health
       - name: Show logs on failure
         if: failure()

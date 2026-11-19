@@ -27,6 +27,7 @@ _NOISE_WORDS = {
     "debit", "credit", "contactless", "direct", "dd", "so", "bacs", "fpo", "fpi", "bgc",
     "ref", "on", "at", "the", "ltd", "limited", "inc", "llc", "plc", "co", "www", "com",
     "online", "transaction", "trx", "txn", "gbp", "usd", "eur", "faster", "standing", "order",
+    "zelle", "ach", "eft", "ppd", "ccd", "web", "recurring", "pymt", "usataxpymt", "of",
 }  # fmt: skip
 
 
@@ -40,6 +41,17 @@ def merchant_key(description: str, max_words: int = 3) -> str:
     text = re.sub(r"[^a-z&\s]", " ", text)
     words = [w for w in text.split() if w not in _NOISE_WORDS and len(w) > 1]
     return " ".join(words[:max_words])
+
+
+_ACRONYMS = {
+    "irs", "usps", "ups", "dhl", "aws", "hmrc", "vat", "llc", "nj", "ny", "ca", "tx", "fl", "uk",
+    "us", "usa", "bt", "ee", "o2", "pse&g", "jcp&l", "atm", "pos", "dd", "ltd", "plc", "gst",
+}  # fmt: skip
+
+
+def pretty_merchant(key: str) -> str:
+    """'nj division taxation' -> 'NJ Division Taxation'."""
+    return " ".join(w.upper() if w in _ACRONYMS else w.capitalize() for w in key.split())
 
 
 @dataclass(frozen=True)

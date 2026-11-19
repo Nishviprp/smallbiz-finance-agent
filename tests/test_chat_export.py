@@ -72,38 +72,38 @@ def test_tax_years():
 @pytest.mark.parametrize(
     "question,tool,needle",
     [
-        ("How much profit did we make last month?", "summary", "£8,408"),
-        ("How much did we spend on wages this year?", "category_total", "£35,399"),
-        ("How much have we paid Bookers since March?", "search", "£9,748"),
+        ("How much profit did we make last month?", "summary", "$5,283"),
+        ("How much did we spend on wages this year?", "category_total", "$35,858"),
+        ("How much have we paid Sysco since March?", "search", "$10,013"),
         ("What are our biggest expenses?", "top_expenses", "Payroll"),
         ("Which invoices are overdue?", "invoices", "Riverside Book Club"),
-        ("show profit month by month", "monthly", "Best: May 2026"),
+        ("show profit month by month", "monthly", "Best: Mar 2026"),
         ("what did we earn from catering events", "search", "received"),
         ("what still needs categorizing?", "uncategorized", "42 transactions"),
         ("tell me a joke", "none", "I can answer"),
     ],
 )
 def test_chat_rules(books, question, tool, needle):
-    r = ask(books, question, "GBP", today=TODAY)
+    r = ask(books, question, "USD", today=TODAY)
     assert r.tool == tool
     assert r.method == "rules"
     assert needle in r.answer
 
 
 def test_chat_follow_up_reuses_previous_question(books):
-    first = ask(books, "How much did we spend on rent?", "GBP", today=TODAY)
+    first = ask(books, "How much did we spend on rent?", "USD", today=TODAY)
     history = [
         ChatTurn("user", "How much did we spend on rent?"),
         ChatTurn("assistant", first.answer, first.tool, first.args),
     ]
-    r = ask(books, "and in March?", "GBP", history=history, today=TODAY)
+    r = ask(books, "and in March?", "USD", history=history, today=TODAY)
     assert r.tool == "category_total"
     assert (r.start, r.end) == (dt.date(2026, 3, 1), dt.date(2026, 3, 31))
-    assert "£2,200" in r.answer
+    assert "$2,200" in r.answer
 
 
 def test_chat_empty_books(db):
-    r = ask(db, "How much profit?", "GBP")
+    r = ask(db, "How much profit?", "USD")
     assert "no transactions" in r.answer.lower()
 
 
@@ -132,8 +132,8 @@ def test_chat_llm_routes_and_phrases(books):
         "start": "2026-01-01",
         "end": "2026-03-31",
     }  # fmt: skip  (typo on purpose → fuzzy match)
-    llm = ScriptedLLM(json.dumps(plan), "You spent **£1,039** on utilities in Q1.")
-    r = ask(books, "energy bills in q1?", "GBP", llm=llm, today=TODAY)
+    llm = ScriptedLLM(json.dumps(plan), "You spent **$1,039** on utilities in Q1.")
+    r = ask(books, "energy bills in q1?", "USD", llm=llm, today=TODAY)
     assert r.method == "ai" and r.tool == "category_total"
     assert r.data["category"] == "Utilities"
     assert r.answer.startswith("You spent")
@@ -143,14 +143,14 @@ def test_chat_llm_routes_and_phrases(books):
 
 def test_chat_llm_bad_tool_args_fall_back_to_rules(books):
     llm = ScriptedLLM(json.dumps({"tool": "category_total", "args": {"category": "zzzz"}}))
-    r = ask(books, "How much did we spend on wages?", "GBP", llm=llm, today=TODAY)
+    r = ask(books, "How much did we spend on wages?", "USD", llm=llm, today=TODAY)
     assert r.tool == "category_total" and r.method == "rules"
-    assert "£35,399" in r.answer
+    assert "$35,858" in r.answer
 
 
 def test_chat_llm_offline_uses_template(books):
     llm = ScriptedLLM(LLMError("down"), LLMError("down"))
-    r = ask(books, "What are our biggest expenses?", "GBP", llm=llm, today=TODAY)
+    r = ask(books, "What are our biggest expenses?", "USD", llm=llm, today=TODAY)
     assert r.method == "rules" and "Payroll" in r.answer
 
 
@@ -192,7 +192,7 @@ def test_transactions_csv(client, books):
     assert r.status_code == 200
     assert "attachment" in r.headers["content-disposition"]
     rows = list(csv.DictReader(io.StringIO(r.content.decode("utf-8-sig"))))
-    assert len(rows) == 58
+    assert len(rows) == 59
     assert all(row["Date"].startswith("2026-01") for row in rows)
     assert {"Allowable expense", "Income", "Needs review"} <= {row["Tax treatment"] for row in rows}
 
@@ -203,7 +203,7 @@ def test_tax_pack_pdf_and_zip(client, books):
     with pdfplumber.open(io.BytesIO(pdf)) as doc:
         text = "\n".join(p.extract_text() or "" for p in doc.pages)
     assert "Tax pack" in text and "Estimated taxable profit" in text
-    assert "£118,701.17" in text
+    assert "$116,463.20" in text
     assert "INV-2026-021" in text  # unpaid at period end
 
     z = zipfile.ZipFile(io.BytesIO(client.get("/export/tax-pack.zip").content))

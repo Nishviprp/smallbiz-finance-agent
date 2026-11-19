@@ -21,15 +21,22 @@ PAGES = [
     "views/categories.py",
     "views/chat.py",
     "views/export.py",
+    "views/settings.py",
 ]
+
+
+def _complete_setup(client):
+    r = client.put("/settings", json={"business_name": "Bean & Bloom Café LLC", "country": "US"})
+    assert r.status_code == 200, r.text
 
 
 @pytest.fixture
 def seeded(client):
+    _complete_setup(client)
     for path, endpoint, mime in [
         (SAMPLE_DIR / "bank_statement_cafe.csv", "/uploads/statement", "text/csv"),
         (SAMPLE_DIR / "invoices" / "INV-2026-021.pdf", "/uploads/invoice", "application/pdf"),
-        (SAMPLE_DIR / "receipts" / "receipt_makro.pdf", "/uploads/receipt", "application/pdf"),
+        (SAMPLE_DIR / "receipts" / "receipt_costco.pdf", "/uploads/receipt", "application/pdf"),
     ]:
         r = client.post(
             endpoint,
@@ -62,10 +69,11 @@ def test_overview_kpis(seeded):
     at = _run("views/overview.py")
     labels = [m.label for m in at.metric]
     assert labels[:3] == ["Income", "Expenses", "Net profit"]
-    assert at.metric[0].value == "£118,701"
+    assert at.metric[0].value == "$116,463"
 
 
 def test_pages_render_empty(client):
+    _complete_setup(client)
     dash_api.set_client(client)
     try:
         for page in PAGES:
@@ -95,3 +103,19 @@ def test_preset_range():
     assert preset_range("Year to date", first, last) == (dt.date(2026, 1, 1), last)
     assert preset_range("Last 12 months", first, last) == (dt.date(2025, 7, 1), last)
     assert preset_range("All time", first, last) == (first, last)
+
+
+def test_first_run_shows_setup_wizard(client):
+    dash_api.set_client(client)
+    try:
+        at = _run()
+        assert not at.exception
+        assert "Welcome" in at.title[0].value
+        at.text_input[0].input("Joe's Coffee LLC")
+        at.button[0].click()
+        at.run()
+        assert not at.exception
+        assert client.get("/settings").json()["business_name"] == "Joe's Coffee LLC"
+        assert at.title[0].value == "Overview"
+    finally:
+        dash_api.set_client(None)

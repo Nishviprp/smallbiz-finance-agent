@@ -1,0 +1,5 @@
+# Keep line endings correct for each platform's launcher
+*.bat text eol=crlf
+*.sh text eol=lf
+*.command text eol=lf
+*.py text eol=lf

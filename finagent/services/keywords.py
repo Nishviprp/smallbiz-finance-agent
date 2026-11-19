@@ -23,7 +23,8 @@ KEYWORDS: dict[str, list[str]] = {
     "Utilities": [
         "british gas", "edf", "octopus energy", "eon", "e.on", "ovo energy", "thames water",
         "severn trent", "anglian water", "con edison", "pg&e", "duke energy", "pseg",
-        "national grid", "electricity", "water bill", "gas bill",
+        "national grid", "electricity", "water bill", "gas bill", "pse&g", "suez water",
+        "veolia water", "american water", "jcp&l", "con ed", "socalgas", "dominion energy",
     ],
     "Payroll": ["hmrc paye", "payroll", "salary", "salaries", "wages", "gusto", "adp", "paychex", "deel"],
     "Software & Subscriptions": [
@@ -55,19 +56,25 @@ KEYWORDS: dict[str, list[str]] = {
         "bt group", "bt broadband", "vodafone", "ee limited", "o2", "virgin media", "sky digital",
         "verizon", "at&t", "t-mobile", "comcast", "xfinity", "spectrum",
     ],
-    "Insurance": ["insurance", "aviva", "axa", "hiscox", "simply business", "direct line", "geico"],
+    "Insurance": ["insurance", "aviva", "axa", "hiscox", "simply business", "direct line", "geico",
+        "next insurance", "state farm", "progressive"],
     "Professional Fees": ["accountant", "accountancy", "solicitor", "legal fees", "lawyer", "legalzoom"],
     "Bank Fees": [
         "bank charge", "account fee", "monthly fee", "overdraft fee", "service charge",
+        "maintenance fee", "service fee", "wire fee",
         "transaction fee", "interest charged", "stripe fee", "paypal fee",
     ],
     "Shipping & Postage": [
         "royal mail", "dhl", "fedex", "ups", "usps", "parcelforce", "evri", "hermes", "dpd",
     ],
-    "Repairs & Maintenance": ["plumber", "electrician", "repair", "maintenance", "screwfix", "toolstation"],
+    "Repairs & Maintenance": [
+        "plumber", "electrician", "repair", "maintenance", "screwfix", "toolstation",
+        "home depot", "lowe's", "lowes", "ace hardware",
+    ],
     "Taxes & Licenses": [
         "hmrc", "irs", "council tax", "business rates", "vat payment", "corporation tax",
         "companies house", "licence fee", "license fee", "franchise tax",
+        "division of taxation", "sales tax payment", "usataxpymt", "eftps", "dept of revenue",
     ],
     "Training": ["udemy", "coursera", "linkedin learning", "pluralsight"],
     "Transfers": ["transfer to", "transfer from", "to savings", "from savings", "internal transfer"],

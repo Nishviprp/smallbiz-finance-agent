@@ -13,6 +13,7 @@ from finagent.ingest.common import infer_dayfirst, parse_amount, parse_date
         ("12.50", Decimal("12.50")),
         ("-12.50", Decimal("-12.50")),
         ("£1,234.56", Decimal("1234.56")),
+        ("$1,234.56", Decimal("1234.56")),
         ("$ -9.99", Decimal("-9.99")),
         ("(45.00)", Decimal("-45.00")),
         ("12.00-", Decimal("-12.00")),

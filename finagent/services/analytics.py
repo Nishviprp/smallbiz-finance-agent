@@ -20,7 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Category, Invoice, Transaction
-from .categorizer import merchant_key
+from .categorizer import merchant_key, pretty_merchant
 
 ZERO = Decimal("0")
 UNCAT_IN = "Uncategorized income"
@@ -255,7 +255,7 @@ def top_expenses(db: Session, start: dt.date, end: dt.date, limit: int = 10) -> 
         spend = -r.amount
         total += spend
         by_cat[r.category] += spend
-        key = merchant_key(r.description) or r.description[:30].lower()
+        key = pretty_merchant(merchant_key(r.description) or r.description[:30].lower())
         by_merchant[key] += spend
         count[key] += 1
 

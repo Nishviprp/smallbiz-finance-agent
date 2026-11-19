@@ -55,8 +55,8 @@ class FakeLLM:
 
 def test_pdf_statement_tables_match_csv():
     st = parse_pdf_statement((SAMPLE_DIR / "bank_statement_cafe.pdf").read_bytes())
-    assert len(st.rows) == 58
-    assert sum(r.amount for r in st.rows) == Decimal("2827.53")
+    assert len(st.rows) == 59
+    assert sum(r.amount for r in st.rows) == Decimal("1100.37")
 
 
 def test_pdf_statement_text_lines_use_balance_for_sign():
@@ -101,13 +101,13 @@ def test_pdf_statement_unreadable_raises():
 @needs_ocr
 def test_receipt_photo_ocr():
     f = extract_document(
-        (SAMPLE_DIR / "receipts" / "receipt_screwfix.png").read_bytes(), "r.png", "receipt"
+        (SAMPLE_DIR / "receipts" / "receipt_home_depot.png").read_bytes(), "r.png", "receipt"
     )
     assert f.method == "ocr+regex"
-    assert f.vendor == "SCREWFIX"
-    assert f.total == Decimal("27.51")
-    assert f.tax == Decimal("4.59")
-    assert f.date == dt.date(2026, 1, 2)
+    assert f.vendor == "THE HOME DEPOT"
+    assert f.total == Decimal("74.85")
+    assert f.tax == Decimal("4.65")
+    assert f.date == dt.date(2026, 1, 3)
 
 
 def test_invoice_pdf_regex():
@@ -118,8 +118,8 @@ def test_invoice_pdf_regex():
     assert f.client == "Riverside Book Club"
     assert f.client_email == "treasurer@riverside.example"
     assert (f.date, f.due_date) == (dt.date(2026, 5, 6), dt.date(2026, 6, 5))
-    assert (f.total, f.tax) == (Decimal("486.00"), Decimal("81.00"))
-    assert f.currency == "GBP"
+    assert (f.total, f.tax) == (Decimal("486.00"), Decimal("30.20"))
+    assert f.currency == "USD"
 
 
 def test_vision_model_used_for_photos():
@@ -130,7 +130,7 @@ def test_vision_model_used_for_photos():
 
 
 def test_text_llm_used_for_pdfs_and_regex_fills_gaps():
-    reply = json.dumps({"client": "Green Ltd", "total": 363.45})  # no number/dates
+    reply = json.dumps({"client": "Green LLC", "total": 317.60})  # no number/dates
     llm = FakeLLM(text_reply=reply)
     f = extract_document(
         (SAMPLE_DIR / "invoices" / "INV-2026-014.pdf").read_bytes(), "i.pdf", "invoice", llm=llm
@@ -144,10 +144,10 @@ def test_text_llm_used_for_pdfs_and_regex_fills_gaps():
 def test_llm_failure_falls_back_to_regex():
     llm = FakeLLM()  # both modes raise
     f = extract_document(
-        (SAMPLE_DIR / "receipts" / "receipt_makro.pdf").read_bytes(), "r.pdf", "receipt", llm=llm
+        (SAMPLE_DIR / "receipts" / "receipt_costco.pdf").read_bytes(), "r.pdf", "receipt", llm=llm
     )
     assert f.method == "pdf-text+regex"
-    assert f.total == Decimal("132.91")
+    assert f.total == Decimal("172.40")
 
 
 def test_unsupported_document_type():

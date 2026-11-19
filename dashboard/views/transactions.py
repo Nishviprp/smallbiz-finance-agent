@@ -18,7 +18,7 @@ options = [UNCAT, *sorted(by_name)]
 f1, f2, f3, f4 = st.columns([1.4, 1, 1.6, 1])
 cat_filter = f1.selectbox("Category", ["All", UNCAT, *sorted(by_name)])
 direction = f2.selectbox("Direction", ["All", "Money in", "Money out"])
-search = f3.text_input("Search", placeholder="e.g. bookers, rent, uber")
+search = f3.text_input("Search", placeholder="e.g. sysco, rent, uber")
 limit = f4.selectbox("Show", [200, 500, 1000], index=1)
 
 params = dict(
@@ -75,7 +75,7 @@ edited = st.data_editor(
     height=560,
     disabled=["Date", "Description", "Amount", "By", "Confidence"],
     column_config={
-        "Date": st.column_config.DateColumn(format="DD MMM YYYY", width="small"),
+        "Date": st.column_config.DateColumn(format=ui.date_column_format(), width="small"),
         "Description": st.column_config.TextColumn(width="large"),
         "Amount": st.column_config.NumberColumn(format="%.2f", width="small"),
         "Category": st.column_config.SelectboxColumn(options=options, required=True),

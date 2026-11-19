@@ -26,8 +26,10 @@ _DATE_START = re.compile(
     r"\d{1,2}\s+[A-Za-z]{3,9}\.?(?:\s+\d{2,4})?)\s+(?P<rest>.+)$"
 )
 _MONEY = re.compile(r"\(?-?[£$€]?\s?\d{1,3}(?:[,\s]?\d{3})*(?:[.,]\d{2})\)?(?:\s?(?:CR|DR))?-?")
-_OPENING = re.compile(r"(balance brought forward|opening balance|previous balance)", re.I)
-_SKIP_LINE = re.compile(r"(balance carried forward|closing balance|^page \d)", re.I)
+_OPENING = re.compile(
+    r"(balance brought forward|opening balance|previous balance|beginning balance)", re.I
+)
+_SKIP_LINE = re.compile(r"(balance carried forward|closing balance|ending balance|^page \d)", re.I)
 
 
 def parse_pdf_statement(

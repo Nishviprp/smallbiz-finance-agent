@@ -22,7 +22,7 @@ def isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", pg_url or f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path / "uploads"))
     monkeypatch.setenv("LLM_PROVIDER", "none")
-    monkeypatch.setenv("CURRENCY", "GBP")
+    monkeypatch.setenv("CURRENCY", "USD")
     get_settings.cache_clear()
     reset_engine()
     if pg_url:

@@ -29,7 +29,7 @@ if choice == "Custom dates":
 else:
     y = years[options.index(choice)]
     start, end = dt.date.fromisoformat(y["start"]), dt.date.fromisoformat(y["end"])
-    c2.caption(f"{start:%d %b %Y} – {end:%d %b %Y}")
+    c2.caption(f"{ui.fmt_date(start)} – {ui.fmt_date(end)}")
 
 s = ui.call(api.get, "/export/summary", start=start, end=end)
 cur = s["currency"]

@@ -1,6 +1,6 @@
 # SmallBiz Finance Agent
 
-**Open-source AI bookkeeping for shops, cafés, freelancers and agencies — free, and it runs on your own machine.**
+**Open-source AI bookkeeping for shops, cafés, freelancers and agencies — free, private, and it runs on your own computer.**
 
 [![CI](https://github.com/Nishviprp/smallbiz-finance-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Nishviprp/smallbiz-finance-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -9,7 +9,8 @@
 
 Drop in your bank statements, receipts and invoices. The agent categorizes every transaction,
 tracks who owes you money, shows where your cash goes, answers questions in plain English and
-hands you a tax-ready pack at year end.
+hands you a tax-ready pack at year end. Built for US small businesses (USD, IRS-style tax year) and
+works anywhere — pick your country on first launch.
 
 <p align="center">
   <img src="docs/images/demo.gif" alt="SmallBiz Finance Agent demo: overview, transactions, invoices, chat and tax export" width="900">
@@ -34,7 +35,7 @@ by code — the AI never makes figures up.
 | 🧾 **Receipts** | Photo or PDF → vision AI, OCR or pattern matching → vendor, date, total, tax — auto-linked to the bank payment. |
 | 📨 **Unpaid invoice tracker** | Upload sales invoices (PDF/photo) or add them by hand. Marked **paid** automatically when the money lands; overdue and due-soon alerts; aging buckets. |
 | 📊 **Dashboard** | Income, expenses, net profit and cash flow vs the previous period, money in vs out, top categories and suppliers, trends, a full profit & loss statement. |
-| 💬 **Chat with your books** | *"How much have we paid Bookers since March?"* — answered from your data. Works offline without AI. |
+| 💬 **Chat with your books** | *"How much have we paid Sysco since March?"* — answered from your data. Works offline without AI. |
 | 🧾 **Tax-ready export** | Pick a tax year → ZIP with a PDF tax pack, the full ledger with each line's tax treatment and a category summary for your accountant. |
 | 🔒 **Private by default** | SQLite file on your disk (Postgres optional). No accounts, no telemetry. |
 
@@ -51,7 +52,22 @@ by code — the AI never makes figures up.
 
 ## Quickstart
 
-### Option A — Docker (one command)
+### Option A — One click (Windows / Mac, no technical skills needed)
+
+1. Install **Python 3.10+** from [python.org](https://www.python.org/downloads/) — on Windows tick
+   **"Add python.exe to PATH"** on the first screen.
+2. [Download this project as a ZIP](https://github.com/Nishviprp/smallbiz-finance-agent/archive/refs/heads/main.zip)
+   and unzip it anywhere (e.g. your Documents folder).
+3. Double-click **`start.bat`** (Windows) or **`start.command`** (Mac).
+
+The first launch installs everything (a few minutes) and adds a **SmallBiz Finance** shortcut to
+your Windows desktop. After that it opens in your browser in seconds. A short welcome screen asks
+for your business name and country; then click **Load the demo café** to explore, or upload your
+own bank statement. Close the black window to stop the app.
+
+<p align="center"><img src="docs/images/welcome.png" alt="First-run welcome screen" width="720"></p>
+
+### Option B — Docker (one command)
 
 ```bash
 git clone https://github.com/Nishviprp/smallbiz-finance-agent.git
@@ -72,7 +88,7 @@ Use Postgres instead of SQLite: put
 `DATABASE_URL=postgresql+psycopg://finagent:finagent@db:5432/finagent` in `.env`, then
 `docker compose --profile postgres up -d`.
 
-### Option B — Python (3.10+)
+### Option C — Python, manually (3.10+)
 
 ```bash
 git clone https://github.com/Nishviprp/smallbiz-finance-agent.git
@@ -92,13 +108,16 @@ python -m streamlit run dashboard/app.py           # terminal 2 → http://local
 
 ### Try the demo café
 
-`sample_data/` holds six months of a fictional café's books:
+One click: **Load the demo café** (on the empty Overview, or in **Settings**) imports six months of
+*Bean & Bloom Café LLC* in Jersey City, NJ. To try uploads by hand, use the files in `sample_data/`:
 
 1. **Upload → Bank statement** → `bank_statement_cafe.csv` (or the January `.pdf`)
-2. **Upload → Receipt** → `receipts/receipt_screwfix.png` — linked to its bank payment
+2. **Upload → Receipt** → `receipts/receipt_home_depot.png` — linked to its bank payment
 3. **Upload → Sales invoice** → `invoices/INV-2026-014.pdf` — instantly **paid** (the payment is in the statement)
 4. **Upload → Sales invoice** → `invoices/INV-2026-021.pdf` — flagged **overdue**
 5. **Ask your books** → *"What are our biggest expenses?"*
+
+Done exploring? **Settings → Start fresh** clears the demo (your settings and categories stay).
 
 ### Optional extras
 
@@ -112,14 +131,15 @@ python -m streamlit run dashboard/app.py           # terminal 2 → http://local
 
 ## Configuration
 
-Copy `.env.example` to `.env`. The most useful settings:
+**Business profile** (name, country, currency, date format, tax year) is set in the app — on the
+welcome screen and later in **Settings**. Country presets: United States (USD, MM/DD, Jan 1 tax
+year), Canada, United Kingdom (GBP, DD/MM, Apr 6), Ireland/Eurozone, Australia (Jul 1), New Zealand
+and India — every value stays editable. Amounts are never converted; the currency is a label.
+
+Technical settings live in `.env` (copy `.env.example`):
 
 | Variable | Default | What it does |
 |---|---|---|
-| `BUSINESS_NAME` | `My Business` | Shown on the tax pack |
-| `CURRENCY` | `GBP` | Currency for display and exports |
-| `TAX_YEAR_START` | `01-01` | First day of your tax year (`04-06` UK, `07-01` Australia) |
-| `DATE_DAYFIRST` | `true` | Only for ambiguous dates like `03/04/2026` (otherwise detected per file) |
 | `LLM_PROVIDER` | `ollama` | `ollama` · `openai` · `anthropic` · `none` |
 | `DATABASE_URL` | SQLite in `./data` | Any SQLAlchemy URL, e.g. Postgres |
 | `INVOICE_ALERT_DAYS` | `7` | "Due soon" window |
@@ -135,7 +155,8 @@ Sales invoice PDF  ──┘   │  ▲       / Postgres └─► Tax pack (PDF
 ```
 
 **Categorization.** 1) Your rules, created automatically when you correct a transaction.
-2) Built-in keywords for common UK/US merchants (SumUp, Bookers, HMRC, AWS, Uber…), instant and
+2) Built-in keywords for ~260 common US and UK merchants (Square, Sysco, Gusto, IRS, PSE&G,
+Verizon, Home Depot, AWS, Uber…), instant and
 offline. 3) The LLM, in batches; every answer is checked against your category list and the
 money-in/money-out direction before it is saved. Anything still unknown stays **uncategorized**
 for you to review — it is never silently guessed.
@@ -172,7 +193,7 @@ Interactive docs at **http://localhost:8000/docs**.
 
 ```bash
 python -m pip install -r requirements-dev.txt
-pytest                                   # 110+ tests: SQLite by default
+pytest                                   # 125+ tests: SQLite by default
 TEST_DATABASE_URL=postgresql+psycopg://user:pass@localhost/db pytest   # or against Postgres
 ruff check . && ruff format --check .
 python scripts/generate_sample_data.py   # rebuild the demo data
@@ -188,6 +209,7 @@ finagent/           FastAPI backend
   services/         categorizer, LLM clients, importer, analytics, invoices, receipts, chat, export
 dashboard/          Streamlit UI (views/ = one file per page)
 docker/             Dockerfiles · docker-compose.yml at the root
+launch.py           one-click launcher (used by start.bat / start.command / start.sh)
 sample_data/        demo café: statement (CSV + PDF), receipts, invoices
 tests/              pytest suite (API, parsers, categorizer, reports, chat, export, dashboard pages)
 ```
@@ -196,12 +218,15 @@ tests/              pytest suite (API, parsers, categorizer, reports, chat, expo
 
 - [x] **v0.1.0** — CSV/PDF import, AI categorization with learning rules, receipts & OCR,
   invoice tracker with auto-matching, dashboard, chat with your books, tax export, Docker
+- [x] **v0.2.0** — one-click launcher, first-run setup wizard, US defaults, one-click demo,
+  start-fresh reset
 - [ ] Email reminders for overdue invoices (SMTP)
 - [ ] Partial invoice payments and credit notes
 - [ ] VAT / sales-tax returns (UK MTD, US sales tax summaries)
 - [ ] Multi-currency accounts
 - [ ] Bank feeds via open-banking providers (GoCardless, Plaid)
-- [ ] Database migrations (Alembic) and multi-user login
+- [ ] Login and multi-user access (needed before hosting it online)
+- [ ] Database migrations (Alembic)
 
 Ideas and pull requests are welcome — open an issue.
 

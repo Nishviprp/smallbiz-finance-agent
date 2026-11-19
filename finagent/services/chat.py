@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Category, Invoice, Transaction
 from . import analytics
+from .dates import fmt_date, use_dayfirst
 from .llm import LLMClient, LLMError, extract_json
 from .periods import MONTHS, parse_period
 
@@ -110,7 +111,7 @@ class Fmt:
 
 
 def _d(d: dt.date) -> str:
-    return f"{d.day} {d:%b %Y}"
+    return fmt_date(d)
 
 
 def _span(start: dt.date, end: dt.date) -> str:
@@ -265,7 +266,7 @@ class Books:
         sup = top["merchants"][0]
         return top, (
             f"Your biggest costs between {_span(start, end)} (total {f.m(top['total_expenses'])}): "
-            f"{items}. Largest single supplier: {sup['merchant'].title()} ({f.m(sup['total'])})."
+            f"{items}. Largest single supplier: {sup['merchant']} ({f.m(sup['total'])})."
         )
 
     def monthly(self, start: dt.date, end: dt.date) -> tuple[list, str]:
@@ -391,7 +392,7 @@ HELP = (
     "I can answer questions about your books, for example:\n"
     "- *How much profit did we make last month?*\n"
     "- *How much did we spend on wages this year?*\n"
-    "- *How much have we paid Bookers since March?*\n"
+    "- *How much have we paid Sysco since March?*\n"
     "- *What are our biggest expenses?*\n"
     "- *Which invoices are overdue?*\n"
     "- *Show profit month by month*"
@@ -449,7 +450,7 @@ def route_rules(books: Books, question: str, history: list[ChatTurn]) -> tuple[s
     ):
         return "summary", {}
 
-    # Free text: a supplier or customer name on its own ("how much have we paid Bookers?")
+    # Free text: a supplier or customer name on its own ("how much have we paid Sysco?")
     words = [
         w
         for w in re.findall(r"[a-z0-9&]+", q)
@@ -504,7 +505,9 @@ def ask(
     history: list[ChatTurn] | None = None,
     llm: LLMClient | None = None,
     today: dt.date | None = None,
+    dayfirst: bool = False,
 ) -> ChatResult:
+    use_dayfirst(dayfirst)
     history = history or []
     books = Books(db, currency, today=today)
     question = question.strip()[:500]
@@ -546,7 +549,7 @@ def ask(
     except (ValueError, TypeError) as exc:
         if method == "ai":  # LLM picked bad args → fall back to rules
             log.info("LLM tool args invalid (%s); using rules", exc)
-            return ask(db, question, currency, history, llm=None, today=today)
+            return ask(db, question, currency, history, llm=None, today=today, dayfirst=dayfirst)
         return ChatResult(HELP, "none")
 
     data = _jsonable(data)

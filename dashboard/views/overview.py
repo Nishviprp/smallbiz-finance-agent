@@ -155,7 +155,6 @@ with right:
     st.subheader("Top suppliers")
     merchants = pd.DataFrame(top["merchants"])
     if not merchants.empty:
-        merchants["merchant"] = merchants["merchant"].str.title()
         st.dataframe(
             merchants[["merchant", "total", "count", "share_pct"]],
             hide_index=True,

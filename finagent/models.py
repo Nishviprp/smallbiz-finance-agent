@@ -137,3 +137,12 @@ class Invoice(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class AppSetting(Base):
+    """Key/value store for the business profile set in the dashboard."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)

@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..config import get_settings
 from ..db import get_db
+from ..services.business import get_profile
 from ..services.chat import ChatTurn, ask
 from ..services.llm import get_llm
 
@@ -42,12 +42,14 @@ class ChatOut(BaseModel):
 @router.post("", response_model=ChatOut)
 def chat(body: ChatIn, db: Session = Depends(get_db)):
     """Ask a question about your books in plain English. Read-only: nothing is changed."""
+    profile = get_profile(db)
     result = ask(
         db,
         body.question,
-        get_settings().currency,
+        profile.currency,
         history=[ChatTurn(t.role, t.content, t.tool, t.args) for t in body.history],
         llm=get_llm() if body.use_llm else None,
         today=body.today,
+        dayfirst=profile.date_dayfirst,
     )
     return ChatOut(**vars(result))

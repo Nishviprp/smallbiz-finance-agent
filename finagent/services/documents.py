@@ -43,7 +43,7 @@ def extract_document(
     filename: str,
     kind: DocKind,
     llm: LLMClient | None = None,
-    dayfirst: bool = True,
+    dayfirst: bool = False,
 ) -> DocumentFields:
     suffix = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     is_pdf = suffix == ".pdf" or data[:5] == b"%PDF-"
@@ -111,7 +111,7 @@ _LLM_SYSTEM = (
     "use null for anything missing. Dates as YYYY-MM-DD. Amounts as plain numbers."
 )
 _LLM_SCHEMA = {
-    "receipt": '{"vendor": str, "date": str, "total": num, "tax": num, "currency": "GBP|USD|..."}',
+    "receipt": '{"vendor": str, "date": str, "total": num, "tax": num, "currency": "USD|GBP|EUR|..."}',
     "invoice": (
         '{"vendor": "issuer", "client": "billed to", "client_email": str, "number": str, '
         '"date": "issue date", "due_date": str, "total": "amount due incl. tax", '

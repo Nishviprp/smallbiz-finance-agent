@@ -5,9 +5,9 @@ import datetime as dt
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
-from ..config import get_settings
 from ..db import get_db
 from ..services import analytics, export
+from ..services.business import get_profile
 from ..services.periods import tax_year_label, tax_years_covering
 
 router = APIRouter(prefix="/export", tags=["export"])
@@ -31,11 +31,11 @@ def _file(content: bytes, filename: str, media_type: str) -> Response:
 @router.get("/tax-years")
 def tax_years(db: Session = Depends(get_db)):
     """Tax years that contain transactions, newest first (TAX_YEAR_START sets the boundary)."""
-    settings = get_settings()
+    profile = get_profile(db)
     rng = analytics.data_range(db)
     if rng is None:
         return []
-    years = tax_years_covering(rng[0], rng[1], settings.tax_year_start)
+    years = tax_years_covering(rng[0], rng[1], profile.tax_year_start)
     return [{"label": tax_year_label(y), "start": y[0], "end": y[1]} for y in reversed(years)]
 
 
@@ -44,7 +44,7 @@ def tax_summary(
     start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
 ):
     """The tax-pack numbers as JSON (what the dashboard previews)."""
-    pack = export.build_tax_pack(db, *_period(db, start, end), get_settings())
+    pack = export.build_tax_pack(db, *_period(db, start, end), get_profile(db))
     return {
         "start": pack.start,
         "end": pack.end,
@@ -80,7 +80,7 @@ def category_summary_csv(
     start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
 ):
     s, e = _period(db, start, end)
-    pack = export.build_tax_pack(db, s, e, get_settings())
+    pack = export.build_tax_pack(db, s, e, get_profile(db))
     return _file(export.summary_csv(pack), f"category_summary_{s}_{e}.csv", "text/csv")
 
 
@@ -94,7 +94,7 @@ def tax_pack_pdf(
     start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
 ):
     s, e = _period(db, start, end)
-    pack = export.build_tax_pack(db, s, e, get_settings())
+    pack = export.build_tax_pack(db, s, e, get_profile(db))
     return _file(export.tax_pack_pdf(pack), f"tax_pack_{s}_{e}.pdf", "application/pdf")
 
 
@@ -103,5 +103,5 @@ def tax_pack_zip(
     start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
 ):
     s, e = _period(db, start, end)
-    pack = export.build_tax_pack(db, s, e, get_settings())
+    pack = export.build_tax_pack(db, s, e, get_profile(db))
     return _file(export.tax_pack_zip(db, pack), f"tax_pack_{s}_{e}.zip", "application/zip")

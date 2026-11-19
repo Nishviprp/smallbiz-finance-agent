@@ -18,8 +18,9 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..config import Settings
 from ..models import Category, Invoice, Receipt, Transaction
+from .business import BusinessProfile
+from .dates import fmt_date, fmt_short
 
 ZERO = Decimal("0")
 
@@ -100,6 +101,7 @@ class TaxPack:
     currency: str
     start: dt.date
     end: dt.date
+    dayfirst: bool = False
     income: Decimal = ZERO
     allowable_expenses: Decimal = ZERO
     disallowable_expenses: Decimal = ZERO
@@ -126,8 +128,8 @@ class TaxPack:
         return self.expense_with_receipt / self.expense_count * 100
 
 
-def build_tax_pack(db: Session, start: dt.date, end: dt.date, settings: Settings) -> TaxPack:
-    pack = TaxPack(settings.business_name, settings.currency, start, end)
+def build_tax_pack(db: Session, start: dt.date, end: dt.date, profile: BusinessProfile) -> TaxPack:
+    pack = TaxPack(profile.business_name, profile.currency, start, end, profile.date_dayfirst)
     lines = ledger(db, start, end)
     by_cat: dict[str, CategoryLine] = {}
     for ln in lines:
@@ -309,6 +311,8 @@ def tax_pack_pdf(pack: TaxPack) -> bytes:
     body = ParagraphStyle("b", parent=ss["Normal"], fontSize=9.5, leading=13)
     small = ParagraphStyle("s", parent=body, fontSize=8, textColor=colors.HexColor("#52514e"))
     m = lambda v: _money(v, pack.currency)  # noqa: E731
+    fd = lambda d: fmt_date(d, pack.dayfirst)  # noqa: E731
+    fs = lambda d: fmt_short(d, pack.dayfirst)  # noqa: E731
 
     def table(rows, widths, bold_last=False, header=True, text_cols=1):
         t = Table(rows, colWidths=widths, repeatRows=1 if header else 0)
@@ -332,8 +336,8 @@ def tax_pack_pdf(pack: TaxPack) -> bytes:
     story = [
         Paragraph("Tax pack", h1),
         Paragraph(
-            f"<b>{_esc(pack.business)}</b> · {pack.start:%d %b %Y} – {pack.end:%d %b %Y} · "
-            f"{pack.currency} · cash basis · generated {dt.date.today():%d %b %Y}",
+            f"<b>{_esc(pack.business)}</b> · {fd(pack.start)} – {fd(pack.end)} · "
+            f"{pack.currency} · cash basis · generated {fd(dt.date.today())}",
             body,
         ),
         Spacer(1, 8),
@@ -394,13 +398,13 @@ def tax_pack_pdf(pack: TaxPack) -> bytes:
     if pack.unpaid_at_end:
         rows = [["Invoice", "Client", "Issued", "Due", "Amount"]]
         rows += [
-            [i.number or f"#{i.id}", _clip(i.client, 34), f"{i.issue_date:%d/%m/%Y}",
-             f"{i.due_date:%d/%m/%Y}", m(i.amount)]
+            [i.number or f"#{i.id}", _clip(i.client, 34), fs(i.issue_date), fs(i.due_date),
+             m(i.amount)]
             for i in pack.unpaid_at_end
         ]  # fmt: skip
         rows.append(["Total owed to you", "", "", "", m(sum(i.amount for i in pack.unpaid_at_end))])
         story += [
-            Paragraph(f"Unpaid invoices at {pack.end:%d %b %Y}", h2),
+            Paragraph(f"Unpaid invoices at {fd(pack.end)}", h2),
             Paragraph(
                 "Not included in cash-basis income above; relevant if you report on an "
                 "accruals (invoice) basis.",

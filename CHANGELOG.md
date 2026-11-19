@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.2.0 — 2026-11-18
+
+Ready for non-technical small-business owners, with US defaults.
+
+### Added
+- **One-click launcher**: double-click `start.bat` (Windows) or `start.command` (macOS). First run
+  creates a private Python environment, installs everything and adds a desktop shortcut on Windows;
+  later runs start in seconds and open the browser. Closing the window stops the app.
+- **First-run setup wizard**: business name and country set currency, date format and tax year
+  (US, Canada, UK, Ireland/Eurozone, Australia, New Zealand, India). Stored in the database.
+- **Settings page**: edit the business profile, relabel existing records to a new currency,
+  load the demo café in one click, and "start fresh" (delete all books, keep settings).
+- Dates are shown in the business's style (`Jan 5, 2026` in the US) in the dashboard, chat and
+  tax pack.
+- More US merchant keywords (PSE&G, Suez/Veolia water, Home Depot, Lowe's, IRS EFTPS, state
+  divisions of taxation, bank maintenance fees and more).
+
+### Changed
+- **Defaults are now US**: USD, MM/DD dates, January tax year. The demo is now a café in
+  Jersey City, NJ (Square, Sysco, Gusto, NJ sales tax).
+- Dashboard binds to this computer only (`127.0.0.1`) when started with the launcher.
+- Upload logic moved to a shared service (`finagent/services/ingest.py`).
+
 ## v0.1.0 — 2026-11-17
 
 First public release.
