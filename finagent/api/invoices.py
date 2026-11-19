@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
-from ..db import get_db
 from ..models import Invoice, Transaction
 from ..schemas import (
     InvoiceAlertsOut,
@@ -20,6 +19,7 @@ from ..schemas import (
 from ..services.business import get_profile
 from ..services.ingest import find_invoice_number
 from ..services.invoices import effective_status, invoice_alerts, match_payments
+from .deps import get_tenant_db
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -39,7 +39,7 @@ def list_invoices(
     status_filter: str | None = Query(
         default=None, alias="status", pattern="^(unpaid|overdue|paid|void|open)$"
     ),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ):
     today = dt.date.today()
     q = select(Invoice).order_by(Invoice.due_date)
@@ -57,7 +57,7 @@ def list_invoices(
 def alerts(
     days: int | None = Query(default=None, ge=0, le=365),
     today: dt.date | None = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ):
     window = days if days is not None else get_settings().invoice_alert_days
     result = invoice_alerts(db, today or dt.date.today(), window)
@@ -65,12 +65,12 @@ def alerts(
 
 
 @router.post("/match")
-def run_match(db: Session = Depends(get_db)):
+def run_match(db: Session = Depends(get_tenant_db)):
     return {"matched": match_payments(db)}
 
 
 @router.post("", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED)
-def create_invoice(body: InvoiceIn, db: Session = Depends(get_db)):
+def create_invoice(body: InvoiceIn, db: Session = Depends(get_tenant_db)):
     ensure_unique_number(db, body.number)
     data = body.model_dump()
     data["due_date"] = data["due_date"] or body.issue_date + dt.timedelta(days=30)
@@ -85,12 +85,12 @@ def create_invoice(body: InvoiceIn, db: Session = Depends(get_db)):
 
 
 @router.get("/{invoice_id}", response_model=InvoiceOut)
-def get_invoice(invoice_id: int, db: Session = Depends(get_db)):
+def get_invoice(invoice_id: int, db: Session = Depends(get_tenant_db)):
     return to_out(_get(db, invoice_id))
 
 
 @router.patch("/{invoice_id}", response_model=InvoiceOut)
-def update_invoice(invoice_id: int, body: InvoiceUpdate, db: Session = Depends(get_db)):
+def update_invoice(invoice_id: int, body: InvoiceUpdate, db: Session = Depends(get_tenant_db)):
     inv = _get(db, invoice_id)
     data = body.model_dump(exclude_unset=True)
     if "number" in data:
@@ -108,7 +108,7 @@ def update_invoice(invoice_id: int, body: InvoiceUpdate, db: Session = Depends(g
 
 
 @router.post("/{invoice_id}/mark-paid", response_model=InvoiceOut)
-def mark_paid(invoice_id: int, body: MarkPaidIn, db: Session = Depends(get_db)):
+def mark_paid(invoice_id: int, body: MarkPaidIn, db: Session = Depends(get_tenant_db)):
     inv = _get(db, invoice_id)
     paid_date = body.paid_date
     if body.transaction_id is not None:
@@ -123,7 +123,7 @@ def mark_paid(invoice_id: int, body: MarkPaidIn, db: Session = Depends(get_db)):
 
 
 @router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_invoice(invoice_id: int, db: Session = Depends(get_db)):
+def delete_invoice(invoice_id: int, db: Session = Depends(get_tenant_db)):
     db.delete(_get(db, invoice_id))
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

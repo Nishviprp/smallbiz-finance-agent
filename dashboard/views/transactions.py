@@ -54,7 +54,9 @@ if not items:
     st.info("No transactions match these filters.")
     st.stop()
 
-SOURCE = {"user": "You", "rule": "Rule", "keyword": "Keyword", "llm": "AI", "none": "—"}
+SOURCE = {
+    "user": "You", "rule": "Rule", "keyword": "Keyword", "bank": "Bank", "llm": "AI", "none": "—",
+}  # fmt: skip
 df = pd.DataFrame(
     {
         "id": [t["id"] for t in items],

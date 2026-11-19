@@ -22,6 +22,7 @@ PAGES = [
     "views/chat.py",
     "views/export.py",
     "views/settings.py",
+    "views/bank.py",
 ]
 
 
@@ -119,3 +120,65 @@ def test_first_run_shows_setup_wizard(client):
         assert at.title[0].value == "Overview"
     finally:
         dash_api.set_client(None)
+
+
+def test_accounts_mode_login_gate(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from finagent.config import get_settings
+    from finagent.main import create_app
+
+    monkeypatch.setenv("AUTH_MODE", "accounts")
+    get_settings.cache_clear()
+    with TestClient(create_app()) as api_client:
+        dash_api.set_client(api_client)
+        try:
+            at = _run()
+            assert not at.exception
+            assert at.title[0].value == "SmallBiz Finance Agent"  # login screen
+            r = api_client.post(
+                "/auth/signup",
+                json={"email": "a@b.example", "password": "long enough pw", "business_name": "A"},
+            )
+            at.session_state["auth_token"] = r.json()["token"]
+            at.run()
+            assert not at.exception
+            assert at.title[0].value == "Overview"
+            at.session_state["auth_token"] = "revoked-or-forged"
+            at.run()
+            assert at.title[0].value == "SmallBiz Finance Agent"  # bounced back to login
+        finally:
+            dash_api.set_client(None)
+
+
+def test_bank_page_with_connections(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from finagent.config import get_settings
+    from finagent.main import create_app
+    from finagent.services import crypto, plaid
+
+    from .fake_plaid import FakePlaid
+
+    fake = FakePlaid()
+    monkeypatch.setenv("PLAID_CLIENT_ID", "x")
+    monkeypatch.setenv("PLAID_SECRET", "y")
+    monkeypatch.setenv("BANK_SYNC_HOURS", "0")
+    monkeypatch.setenv("SECRET_KEY_FILE", str(tmp_path / "k"))
+    get_settings.cache_clear()
+    crypto.reset_cache()
+    monkeypatch.setattr(plaid, "_test_transport", fake.transport())
+    with TestClient(create_app()) as c:
+        _complete_setup(c)
+        c.post("/bank/sandbox-connect")
+        dash_api.set_client(c)
+        try:
+            at = _run("views/bank.py")
+            assert not at.exception, [e.value for e in at.exception]
+            assert "First Platypus Bank (test)" in " ".join(m.value for m in at.markdown)
+            at.button(key="sync1").click()
+            at.run()
+            assert not at.exception
+        finally:
+            dash_api.set_client(None)
+            crypto.reset_cache()

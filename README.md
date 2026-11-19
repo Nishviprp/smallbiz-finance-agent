@@ -10,7 +10,8 @@
 Drop in your bank statements, receipts and invoices. The agent categorizes every transaction,
 tracks who owes you money, shows where your cash goes, answers questions in plain English and
 hands you a tax-ready pack at year end. Built for US small businesses (USD, IRS-style tax year) and
-works anywhere — pick your country on first launch.
+works anywhere — pick your country on first launch. Run it on your own computer, or
+[host it as one website for many businesses](docs/HOSTING.md) with logins and automatic bank feeds.
 
 <p align="center">
   <img src="docs/images/demo.gif" alt="SmallBiz Finance Agent demo: overview, transactions, invoices, chat and tax export" width="900">
@@ -37,7 +38,9 @@ by code — the AI never makes figures up.
 | 📊 **Dashboard** | Income, expenses, net profit and cash flow vs the previous period, money in vs out, top categories and suppliers, trends, a full profit & loss statement. |
 | 💬 **Chat with your books** | *"How much have we paid Sysco since March?"* — answered from your data. Works offline without AI. |
 | 🧾 **Tax-ready export** | Pick a tax year → ZIP with a PDF tax pack, the full ledger with each line's tax treatment and a category summary for your accountant. |
-| 🔒 **Private by default** | SQLite file on your disk (Postgres optional). No accounts, no telemetry. |
+| 🏦 **Automatic bank feeds** | Connect a bank once with **Plaid** — new transactions sync and categorize themselves every few hours. Works alongside statement uploads (no double counting). |
+| 👥 **Accounts & many businesses** | Optional login mode for hosting: each business gets its own private books; owners stay logged in and their data is kept. |
+| 🔒 **Private by default** | On your computer: a SQLite file on your disk, no login, no telemetry. Hosted: Postgres, hashed passwords, encrypted bank tokens. |
 
 <table>
   <tr>
@@ -119,12 +122,21 @@ One click: **Load the demo café** (on the empty Overview, or in **Settings**) i
 
 Done exploring? **Settings → Start fresh** clears the demo (your settings and categories stay).
 
+### Option D — Host it online for many businesses
+
+One website, many businesses, HTTPS and Postgres — about $5–10/month on a small server.
+Follow **[docs/HOSTING.md](docs/HOSTING.md)** (`deploy/` has the production Compose file, Caddy
+config and a backup script).
+
 ### Optional extras
 
 - **Free local AI** — install [Ollama](https://ollama.com) and run `ollama pull llama3.1:8b`.
   Without it, set `LLM_PROVIDER=none`: built-in keywords still categorize ~88% of the demo lines,
   and chat still works.
 - **Paid AI** — `LLM_PROVIDER=openai` + `OPENAI_API_KEY`, or `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`.
+- **Bank feeds** — get free sandbox keys at [dashboard.plaid.com](https://dashboard.plaid.com),
+  set `PLAID_CLIENT_ID` / `PLAID_SECRET`, then **Bank accounts → Connect a bank**
+  (test login `user_good` / `pass_good`). Real banks need Plaid production approval.
 - **Receipt photos** — install [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/Installation.html)
   (Windows: [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki)), or set
   `OLLAMA_VISION_MODEL=llama3.2-vision`. PDFs with a text layer need neither. Docker includes Tesseract.
@@ -143,6 +155,13 @@ Technical settings live in `.env` (copy `.env.example`):
 | `LLM_PROVIDER` | `ollama` | `ollama` · `openai` · `anthropic` · `none` |
 | `DATABASE_URL` | SQLite in `./data` | Any SQLAlchemy URL, e.g. Postgres |
 | `INVOICE_ALERT_DAYS` | `7` | "Due soon" window |
+| `AUTH_MODE` | `local` | `local` = no login, one business · `accounts` = login, many businesses |
+| `ALLOW_SIGNUP` | `true` | Let new businesses create accounts (accounts mode) |
+| `SESSION_DAYS` | `30` | How long "stay logged in" lasts |
+| `PLAID_CLIENT_ID` / `PLAID_SECRET` | — | Turn on bank feeds |
+| `PLAID_ENV` | `sandbox` | `sandbox` (test banks) · `production` |
+| `BANK_SYNC_HOURS` | `6` | Auto-sync interval (`0` = manual only) |
+| `ENCRYPTION_KEY` | auto | Encrypts bank tokens; auto-created in `data/secret.key` — back it up |
 
 ## How it works
 
@@ -187,13 +206,15 @@ Interactive docs at **http://localhost:8000/docs**.
 | `GET` `POST` `PATCH` `DELETE` | `/invoices` · `/receipts` | Invoices (incl. `/invoices/alerts`, `/mark-paid`) and receipts |
 | `GET` | `/reports/summary` · `/monthly` · `/pnl` · `/top-expenses` · `/category-trends` | Reports |
 | `POST` | `/chat` | Ask a question about your books |
+| `POST` `GET` | `/auth/signup` · `/auth/login` · `/auth/logout` · `/auth/me` · `/auth/password` | Accounts (send `Authorization: Bearer <token>` in accounts mode) |
+| `GET` `POST` `DELETE` | `/bank/status` · `/bank/link-token` · `/bank/connect` · `/bank/sync` · `/bank/connections/{id}` | Plaid bank feeds |
 | `GET` | `/export/tax-pack.zip` · `.pdf` · `/export/transactions.csv` | Tax-ready exports |
 
 ## Development
 
 ```bash
 python -m pip install -r requirements-dev.txt
-pytest                                   # 125+ tests: SQLite by default
+pytest                                   # 160+ tests: SQLite by default
 TEST_DATABASE_URL=postgresql+psycopg://user:pass@localhost/db pytest   # or against Postgres
 ruff check . && ruff format --check .
 python scripts/generate_sample_data.py   # rebuild the demo data
@@ -204,11 +225,12 @@ stack for an end-to-end smoke test. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```
 finagent/           FastAPI backend
-  api/              routes: uploads, transactions, categories, rules, invoices, receipts, reports, chat, export
+  api/              routes: auth, bank, uploads, transactions, categories, rules, invoices, receipts, reports, chat, export
   ingest/           bank CSV, PDF statements, OCR / text extraction
-  services/         categorizer, LLM clients, importer, analytics, invoices, receipts, chat, export
+  services/         auth, plaid + banking, crypto, categorizer, LLM clients, importer, analytics, invoices, chat, export
 dashboard/          Streamlit UI (views/ = one file per page)
 docker/             Dockerfiles · docker-compose.yml at the root
+deploy/             production hosting: Compose + Caddy (HTTPS) + Postgres, backup script
 launch.py           one-click launcher (used by start.bat / start.command / start.sh)
 sample_data/        demo café: statement (CSV + PDF), receipts, invoices
 tests/              pytest suite (API, parsers, categorizer, reports, chat, export, dashboard pages)
@@ -220,12 +242,15 @@ tests/              pytest suite (API, parsers, categorizer, reports, chat, expo
   invoice tracker with auto-matching, dashboard, chat with your books, tax export, Docker
 - [x] **v0.2.0** — one-click launcher, first-run setup wizard, US defaults, one-click demo,
   start-fresh reset
+- [x] **v0.3.0** — accounts & many businesses on one website, Plaid bank feeds with auto-sync,
+  production hosting setup (Caddy HTTPS + Postgres + backups)
 - [ ] Email reminders for overdue invoices (SMTP)
 - [ ] Partial invoice payments and credit notes
 - [ ] VAT / sales-tax returns (UK MTD, US sales tax summaries)
 - [ ] Multi-currency accounts
-- [ ] Bank feeds via open-banking providers (GoCardless, Plaid)
-- [ ] Login and multi-user access (needed before hosting it online)
+- [ ] UK/EU bank feeds (GoCardless open banking)
+- [ ] Invite teammates / accountants to a business
+- [ ] Password reset by email
 - [ ] Database migrations (Alembic)
 
 Ideas and pull requests are welcome — open an issue.

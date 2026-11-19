@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..db import get_db
 from ..models import Category, CategoryRule, Transaction
 from ..schemas import RuleIn, RuleOut
+from .deps import get_tenant_db
 
 router = APIRouter(prefix="/rules", tags=["rules"])
 
@@ -39,14 +39,14 @@ def apply_rule(db: Session, rule: CategoryRule, exclude_id: int | None = None) -
 
 
 @router.get("", response_model=list[RuleOut])
-def list_rules(db: Session = Depends(get_db)):
+def list_rules(db: Session = Depends(get_tenant_db)):
     return db.scalars(
         select(CategoryRule).order_by(CategoryRule.priority, CategoryRule.pattern)
     ).all()
 
 
 @router.post("", response_model=RuleOut, status_code=status.HTTP_201_CREATED)
-def create_rule(body: RuleIn, db: Session = Depends(get_db)):
+def create_rule(body: RuleIn, db: Session = Depends(get_tenant_db)):
     if db.get(Category, body.category_id) is None:
         raise HTTPException(404, "Category not found")
     rule = upsert_rule(db, body.pattern, body.category_id, body.priority)
@@ -57,7 +57,7 @@ def create_rule(body: RuleIn, db: Session = Depends(get_db)):
 
 
 @router.delete("/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+def delete_rule(rule_id: int, db: Session = Depends(get_tenant_db)):
     rule = db.get(CategoryRule, rule_id)
     if rule is None:
         raise HTTPException(404, "Rule not found")

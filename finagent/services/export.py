@@ -24,7 +24,9 @@ from .dates import fmt_date, fmt_short
 
 ZERO = Decimal("0")
 
-SOURCE_LABELS = {"user": "manual", "rule": "rule", "keyword": "keyword", "llm": "AI", "none": ""}
+SOURCE_LABELS = {
+    "user": "manual", "rule": "rule", "keyword": "keyword", "bank": "bank", "llm": "AI", "none": "",
+}  # fmt: skip
 
 
 def _treatment(cat: Category | None) -> str:

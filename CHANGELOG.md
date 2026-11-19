@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.3.0 — 2026-11-18
+
+Host it online: one website, many businesses, automatic bank feeds.
+
+### Added
+- **Accounts mode** (`AUTH_MODE=accounts`): sign up / log in page, each business gets its own
+  private books, "stay logged in" for `SESSION_DAYS`, change password in Settings, CLI to list
+  users and reset passwords. Passwords are scrypt-hashed, session tokens stored only as hashes,
+  repeated wrong passwords are rate-limited.
+- **Tenant isolation built into the database layer**: every query is automatically scoped to the
+  logged-in business; unscoped or cross-business reads and writes are refused.
+- **Plaid bank feeds**: connect a bank with Plaid Link (or the sandbox test bank in one click),
+  incremental sync via `/transactions/sync`, auto-sync every `BANK_SYNC_HOURS`, Plaid categories
+  used as hints, pending lines skipped, edits/removals from the bank applied, lines already
+  imported from a statement skipped, re-login prompt when a bank needs it, disconnect keeps history.
+- Bank tokens encrypted at rest (`ENCRYPTION_KEY` or auto-created `data/secret.key`).
+- **Production hosting**: `deploy/docker-compose.prod.yml` (Caddy auto-HTTPS + Postgres, only
+  ports 80/443 exposed), `deploy/backup.sh`, and [docs/HOSTING.md](docs/HOSTING.md).
+
+### Changed
+- `local` mode (the default) works exactly as before — no login.
+- Uploaded files are stored per business (`data/uploads/business_<id>/`).
+
+### Upgrading from v0.2
+- The database layout changed. On first start a v0.2 SQLite database is moved aside to
+  `*.v02-backup.db` and a fresh one is created — load the demo or re-upload your files.
+  (Postgres users: drop and recreate the database.)
+
 ## v0.2.0 — 2026-11-18
 
 Ready for non-technical small-business owners, with US defaults.

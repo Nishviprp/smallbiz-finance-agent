@@ -23,6 +23,7 @@ def isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path / "uploads"))
     monkeypatch.setenv("LLM_PROVIDER", "none")
     monkeypatch.setenv("CURRENCY", "USD")
+    monkeypatch.setenv("AUTH_MODE", "local")
     get_settings.cache_clear()
     reset_engine()
     if pg_url:
@@ -36,8 +37,13 @@ def isolated_env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def db():
+    """A session scoped to the (local-mode) business, like a request would get."""
+    from finagent.db import scope_session
+    from finagent.services.auth import local_business
+
     init_db()
     with get_session_factory()() as session:
+        scope_session(session, local_business(session).id)
         yield session
 
 

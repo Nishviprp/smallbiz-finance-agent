@@ -5,10 +5,10 @@ import datetime as dt
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
-from ..db import get_db
 from ..services import analytics, export
 from ..services.business import get_profile
 from ..services.periods import tax_year_label, tax_years_covering
+from .deps import get_tenant_db
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -29,7 +29,7 @@ def _file(content: bytes, filename: str, media_type: str) -> Response:
 
 
 @router.get("/tax-years")
-def tax_years(db: Session = Depends(get_db)):
+def tax_years(db: Session = Depends(get_tenant_db)):
     """Tax years that contain transactions, newest first (TAX_YEAR_START sets the boundary)."""
     profile = get_profile(db)
     rng = analytics.data_range(db)
@@ -41,7 +41,7 @@ def tax_years(db: Session = Depends(get_db)):
 
 @router.get("/summary")
 def tax_summary(
-    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
+    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_tenant_db)
 ):
     """The tax-pack numbers as JSON (what the dashboard previews)."""
     pack = export.build_tax_pack(db, *_period(db, start, end), get_profile(db))
@@ -67,7 +67,7 @@ def tax_summary(
 
 @router.get("/transactions.csv")
 def transactions_csv(
-    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
+    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_tenant_db)
 ):
     s, e = _period(db, start, end)
     return _file(
@@ -77,7 +77,7 @@ def transactions_csv(
 
 @router.get("/category-summary.csv")
 def category_summary_csv(
-    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
+    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_tenant_db)
 ):
     s, e = _period(db, start, end)
     pack = export.build_tax_pack(db, s, e, get_profile(db))
@@ -85,13 +85,13 @@ def category_summary_csv(
 
 
 @router.get("/invoices.csv")
-def invoices_csv(db: Session = Depends(get_db)):
+def invoices_csv(db: Session = Depends(get_tenant_db)):
     return _file(export.invoices_csv(db), "invoices.csv", "text/csv")
 
 
 @router.get("/tax-pack.pdf")
 def tax_pack_pdf(
-    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
+    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_tenant_db)
 ):
     s, e = _period(db, start, end)
     pack = export.build_tax_pack(db, s, e, get_profile(db))
@@ -100,7 +100,7 @@ def tax_pack_pdf(
 
 @router.get("/tax-pack.zip")
 def tax_pack_zip(
-    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_db)
+    start: dt.date | None = None, end: dt.date | None = None, db: Session = Depends(get_tenant_db)
 ):
     s, e = _period(db, start, end)
     pack = export.build_tax_pack(db, s, e, get_profile(db))

@@ -5,20 +5,20 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..db import get_db
 from ..models import Category, CategoryRule, Transaction
 from ..schemas import CategoryIn, CategoryOut, CategoryUpdate
+from .deps import get_tenant_db
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
 @router.get("", response_model=list[CategoryOut])
-def list_categories(db: Session = Depends(get_db)):
+def list_categories(db: Session = Depends(get_tenant_db)):
     return db.scalars(select(Category).order_by(Category.kind, Category.name)).all()
 
 
 @router.post("", response_model=CategoryOut, status_code=status.HTTP_201_CREATED)
-def create_category(body: CategoryIn, db: Session = Depends(get_db)):
+def create_category(body: CategoryIn, db: Session = Depends(get_tenant_db)):
     cat = Category(name=body.name.strip(), kind=body.kind, tax_deductible=body.tax_deductible)
     db.add(cat)
     try:
@@ -30,7 +30,7 @@ def create_category(body: CategoryIn, db: Session = Depends(get_db)):
 
 
 @router.patch("/{category_id}", response_model=CategoryOut)
-def update_category(category_id: int, body: CategoryUpdate, db: Session = Depends(get_db)):
+def update_category(category_id: int, body: CategoryUpdate, db: Session = Depends(get_tenant_db)):
     cat = db.get(Category, category_id)
     if cat is None:
         raise HTTPException(404, "Category not found")
@@ -45,7 +45,7 @@ def update_category(category_id: int, body: CategoryUpdate, db: Session = Depend
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: int, db: Session = Depends(get_db)):
+def delete_category(category_id: int, db: Session = Depends(get_tenant_db)):
     cat = db.get(Category, category_id)
     if cat is None:
         raise HTTPException(404, "Category not found")

@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..db import get_db
 from ..services.business import (
     COUNTRIES,
     CURRENCIES,
@@ -13,6 +12,7 @@ from ..services.business import (
     update_profile,
 )
 from ..services.ingest import load_demo, reset_books
+from .deps import get_tenant_db
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -27,13 +27,13 @@ class ProfileIn(BaseModel):
 
 
 @router.get("")
-def read_settings(db: Session = Depends(get_db)):
+def read_settings(db: Session = Depends(get_tenant_db)):
     p = get_profile(db)
     return {**p.as_dict(), "other_currency_transactions": has_mixed_currency(db, p.currency)}
 
 
 @router.put("")
-def save_settings(body: ProfileIn, db: Session = Depends(get_db)):
+def save_settings(body: ProfileIn, db: Session = Depends(get_tenant_db)):
     changes = body.model_dump(exclude_unset=True, exclude={"relabel_existing"})
     changes = {k: v for k, v in changes.items() if v is not None}
     try:
@@ -54,7 +54,7 @@ class ResetIn(BaseModel):
 
 
 @router.post("/demo")
-def demo(db: Session = Depends(get_db)):
+def demo(db: Session = Depends(get_tenant_db)):
     """Load the demo café: 6 months of transactions, two invoices and two receipts."""
     try:
         r = load_demo(db)
@@ -64,7 +64,7 @@ def demo(db: Session = Depends(get_db)):
 
 
 @router.post("/reset")
-def reset(body: ResetIn, db: Session = Depends(get_db)):
+def reset(body: ResetIn, db: Session = Depends(get_tenant_db)):
     """Delete all transactions, invoices, receipts, rules and uploads. Type DELETE to confirm."""
     if body.confirm != "DELETE":
         raise HTTPException(400, 'Type "DELETE" to confirm.')

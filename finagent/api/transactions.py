@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from ..db import get_db
 from ..models import Category, Transaction
 from ..schemas import (
     RecategorizeIn,
@@ -18,6 +17,7 @@ from ..schemas import (
 )
 from ..services.categorizer import merchant_key
 from ..services.importer import recategorize
+from .deps import get_tenant_db
 from .rules import apply_rule, upsert_rule
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -33,7 +33,7 @@ def list_transactions(
     search: str | None = Query(default=None, max_length=100),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ):
     filters = []
     if start:
@@ -66,7 +66,7 @@ def list_transactions(
 
 
 @router.get("/{txn_id}", response_model=TransactionOut)
-def get_transaction(txn_id: int, db: Session = Depends(get_db)):
+def get_transaction(txn_id: int, db: Session = Depends(get_tenant_db)):
     t = db.get(Transaction, txn_id)
     if t is None:
         raise HTTPException(404, "Transaction not found")
@@ -74,7 +74,7 @@ def get_transaction(txn_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{txn_id}", response_model=TransactionUpdateResult)
-def update_transaction(txn_id: int, body: TransactionUpdate, db: Session = Depends(get_db)):
+def update_transaction(txn_id: int, body: TransactionUpdate, db: Session = Depends(get_tenant_db)):
     t = db.get(Transaction, txn_id)
     if t is None:
         raise HTTPException(404, "Transaction not found")
@@ -107,5 +107,5 @@ def update_transaction(txn_id: int, body: TransactionUpdate, db: Session = Depen
 
 
 @router.post("/recategorize")
-def run_recategorize(body: RecategorizeIn, db: Session = Depends(get_db)):
+def run_recategorize(body: RecategorizeIn, db: Session = Depends(get_tenant_db)):
     return {"updated": recategorize(db, **body.model_dump())}

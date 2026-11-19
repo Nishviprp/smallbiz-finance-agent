@@ -18,6 +18,8 @@ data/
 
 # Secrets
 .env
+deploy/prod.env
+secret.key
 
 # OS / editors
 .DS_Store

@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
-from ..db import get_db
 from ..ingest.text import IMAGE_TYPES
 from ..schemas import ImportOut, InvoiceOut, ReceiptOut
 from ..services.ingest import (
@@ -15,6 +14,7 @@ from ..services.ingest import (
     ingest_receipt,
     ingest_statement,
 )
+from .deps import get_tenant_db
 from .invoices import to_out as invoice_out
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
@@ -48,7 +48,7 @@ def upload_statement(
     file: UploadFile = File(...),
     account: str | None = Form(default=None),
     use_llm: bool = Form(default=True),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ):
     suffix = _check_type(file, STATEMENT_TYPES)
     data = _read_limited(file, get_settings().max_upload_mb)
@@ -80,7 +80,7 @@ def upload_statement(
 def upload_receipt(
     file: UploadFile = File(...),
     use_llm: bool = Form(default=True),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ):
     _check_type(file, DOCUMENT_TYPES)
     data = _read_limited(file, get_settings().max_upload_mb)
@@ -98,7 +98,7 @@ def upload_invoice(
     file: UploadFile = File(...),
     use_llm: bool = Form(default=True),
     payment_terms_days: int = Form(default=30, ge=0, le=365),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ):
     """Upload a sales invoice you issued; it is added to the unpaid tracker."""
     _check_type(file, DOCUMENT_TYPES)

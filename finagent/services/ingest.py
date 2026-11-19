@@ -31,10 +31,10 @@ class DuplicateInvoiceError(ValueError):
 
 
 def store_upload(db: Session, data: bytes, filename: str, kind: str) -> Upload:
-    settings = get_settings()
-    settings.upload_dir.mkdir(parents=True, exist_ok=True)
+    folder = get_settings().upload_dir / f"business_{db.info.get('business_id', 'x')}"
+    folder.mkdir(parents=True, exist_ok=True)
     safe = Path(filename or "upload").name.replace(" ", "_")[:120]
-    path = settings.upload_dir / f"{uuid.uuid4().hex[:12]}_{safe}"
+    path = folder / f"{uuid.uuid4().hex[:12]}_{safe}"
     path.write_bytes(data)
     upload = Upload(filename=filename or path.name, stored_path=str(path), kind=kind)
     db.add(upload)

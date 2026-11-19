@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 from collections.abc import Callable
 from typing import Any
@@ -26,8 +27,66 @@ def call(fn: Callable[..., Any], *args, **kwargs) -> Any:
     try:
         return fn(*args, **kwargs)
     except api.APIError as exc:
+        if exc.status == 401 and st.session_state.get("auth_token"):
+            sign_out(local_only=True)  # session expired → back to the login screen
+            st.rerun()
         st.error(str(exc), icon=":material/error:")
         st.stop()
+
+
+# ---- login persistence (accounts mode) ----------------------------------------
+
+COOKIE = "sbfa_session"
+COOKIE_DAYS = 30
+
+
+def _cookie_js(value: str, max_age: int) -> str:
+    # The component iframe shares the app's origin, so this sets a first-party cookie.
+    return (
+        "<script>"
+        "const secure = window.parent.location.protocol === 'https:' ? '; Secure' : '';"
+        f"window.parent.document.cookie = '{COOKIE}={value}; Path=/; Max-Age={max_age}; "
+        "SameSite=Strict' + secure;"
+        "</script>"
+    )
+
+
+def apply_pending_cookie() -> None:
+    """Write/clear the login cookie requested in the previous run (needs one render)."""
+    import streamlit.components.v1 as components
+
+    action = st.session_state.pop("cookie_action", None)
+    if action == "set" and st.session_state.get("auth_token"):
+        token = st.session_state["auth_token"]
+        if all(c.isalnum() or c in "-_" for c in token):  # tokens are url-safe base64
+            components.html(_cookie_js(token, COOKIE_DAYS * 86400), height=0)
+    elif action == "clear":
+        components.html(_cookie_js("", 0), height=0)
+
+
+def remembered_token() -> str | None:
+    if st.session_state.get("signed_out"):
+        return None
+    try:
+        return st.context.cookies.get(COOKIE)
+    except Exception:
+        return None
+
+
+def sign_in(token: str) -> None:
+    st.session_state.auth_token = token
+    st.session_state.cookie_action = "set"
+    st.session_state.pop("signed_out", None)
+
+
+def sign_out(local_only: bool = False) -> None:
+    if not local_only and st.session_state.get("auth_token"):
+        with contextlib.suppress(api.APIError):
+            api.post("/auth/logout")
+    for key in ("auth_token", "currency", "chat"):
+        st.session_state.pop(key, None)
+    st.session_state.cookie_action = "clear"
+    st.session_state.signed_out = True
 
 
 def currency() -> str:

@@ -12,7 +12,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
-from ..models import AppSetting, Invoice, Receipt, Transaction
+from ..models import AppSetting, Business, Invoice, Receipt, Transaction
 from .periods import parse_month_day
 
 # Sensible defaults per country. Everything stays editable.
@@ -62,6 +62,9 @@ def _defaults() -> BusinessProfile:
 def get_profile(db: Session) -> BusinessProfile:
     p = _defaults()
     stored = {row.key: row.value for row in db.scalars(select(AppSetting))}
+    biz = db.get(Business, db.info.get("business_id")) if db.info.get("business_id") else None
+    if biz is not None and "business_name" not in stored:
+        p.business_name = biz.name
     for key in _FIELDS:
         if key in stored:
             raw = stored[key]
@@ -95,16 +98,12 @@ def update_profile(
         if key not in _FIELDS:
             continue
         text = ("true" if value else "false") if key == "date_dayfirst" else str(value)
-        row = db.get(AppSetting, key)
-        if row is None:
-            db.add(AppSetting(key=key, value=text))
-        else:
-            row.value = text
-    row = db.get(AppSetting, "setup_complete")
-    if row is None:
-        db.add(AppSetting(key="setup_complete", value="true"))
-    else:
-        row.value = "true"
+        _set(db, key, text)
+    _set(db, "setup_complete", "true")
+    if "business_name" in changes and db.info.get("business_id"):
+        biz = db.get(Business, db.info["business_id"])
+        if biz is not None:
+            biz.name = changes["business_name"]
 
     if relabel_existing:
         target = changes.get("currency", current.currency)
@@ -112,6 +111,14 @@ def update_profile(
             db.execute(update(model).where(model.currency != target).values(currency=target))
     db.commit()
     return get_profile(db)
+
+
+def _set(db: Session, key: str, value: str) -> None:
+    row = db.scalar(select(AppSetting).where(AppSetting.key == key))
+    if row is None:
+        db.add(AppSetting(key=key, value=value))
+    else:
+        row.value = value
 
 
 def has_mixed_currency(db: Session, currency: str) -> int:

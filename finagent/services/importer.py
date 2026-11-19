@@ -15,7 +15,7 @@ from ..config import get_settings
 from ..ingest.common import ParsedTxn
 from ..models import Category, CategoryRule, Transaction
 from .business import get_profile
-from .categorizer import Categorizer, TxnInput
+from .categorizer import Categorizer, Suggestion, TxnInput, sign_ok
 from .llm import get_llm
 
 log = logging.getLogger(__name__)
@@ -62,20 +62,30 @@ def import_transactions(
     upload_id: int | None = None,
     use_llm: bool = True,
     categorizer: Categorizer | None = None,
+    fingerprints: Sequence[str] | None = None,
+    hints: dict[str, str] | None = None,
+    accounts: Sequence[str | None] | None = None,
 ) -> ImportResult:
+    """Save new rows. `fingerprints` (e.g. "plaid:<id>") override the computed ones;
+    `hints` maps fingerprint -> category name suggested by the bank (used after rules and
+    keywords, before the LLM); `accounts` gives a per-row account label."""
     currency = get_profile(db).currency
     result = ImportResult()
 
     seen: Counter[tuple] = Counter()
-    candidates: list[tuple[str, ParsedTxn]] = []
-    for row in rows:
-        k = (row.date, " ".join(row.description.lower().split()), row.amount)
-        fp = fingerprint(row, account, seen[k])
-        seen[k] += 1
-        candidates.append((fp, row))
+    candidates: list[tuple[str, ParsedTxn, str | None]] = []
+    for i, row in enumerate(rows):
+        acct = accounts[i] if accounts is not None else account
+        if fingerprints is not None:
+            fp = fingerprints[i]
+        else:
+            k = (row.date, " ".join(row.description.lower().split()), row.amount)
+            fp = fingerprint(row, account, seen[k])
+            seen[k] += 1
+        candidates.append((fp, row, acct))
 
     existing: set[str] = set()
-    fps = [fp for fp, _ in candidates]
+    fps = [fp for fp, _, _ in candidates]
     for i in range(0, len(fps), 500):
         existing.update(
             db.scalars(
@@ -83,18 +93,26 @@ def import_transactions(
             )
         )
 
-    new = [(fp, r) for fp, r in candidates if fp not in existing]
+    new = [(fp, r, a) for fp, r, a in candidates if fp not in existing]
     result.duplicates = len(candidates) - len(new)
     if not new:
         return result
 
     cat = categorizer or build_categorizer(db, use_llm=use_llm)
-    suggestions = cat.categorize(
-        (TxnInput(fp, r.description, r.amount) for fp, r in new), use_llm=use_llm
-    )
+    items = [TxnInput(fp, r.description, r.amount) for fp, r, _ in new]
+    suggestions = cat.categorize(items, use_llm=False)  # rules + keywords
+    if hints:
+        by_name = {c.name.lower(): c for c in cat.categories.values()}
+        for t in items:
+            name = hints.get(t.key)
+            c = by_name.get(name.lower()) if name else None
+            if t.key not in suggestions and c is not None and sign_ok(c.kind, t.amount):
+                suggestions[t.key] = Suggestion(c.id, "bank", 0.8)
+    if use_llm:
+        suggestions.update(cat.classify_llm([t for t in items if t.key not in suggestions]))
 
     counts: Counter[str] = Counter()
-    for fp, r in new:
+    for fp, r, acct in new:
         s = suggestions.get(fp)
         db.add(
             Transaction(
@@ -102,7 +120,7 @@ def import_transactions(
                 description=r.description[:500],
                 amount=r.amount,
                 currency=currency,
-                account=account,
+                account=acct,
                 upload_id=upload_id,
                 fingerprint=fp,
                 category_id=s.category_id if s else None,

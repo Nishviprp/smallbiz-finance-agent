@@ -45,9 +45,21 @@ def _clean(params: dict | None) -> dict | None:
     }
 
 
-def request(method: str, path: str, **kw) -> Any:
+def _auth_headers() -> dict:
+    """The logged-in user's token for this browser session (accounts mode)."""
     try:
-        r = client().request(method, path, **kw)
+        import streamlit as st
+
+        token = st.session_state.get("auth_token")
+    except Exception:  # outside a Streamlit run
+        token = None
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def request(method: str, path: str, **kw) -> Any:
+    headers = {**_auth_headers(), **kw.pop("headers", {})}
+    try:
+        r = client().request(method, path, headers=headers, **kw)
     except httpx.HTTPError as exc:
         raise APIError(
             f"Cannot reach the API at {API_URL} ({exc.__class__.__name__}: {exc})."

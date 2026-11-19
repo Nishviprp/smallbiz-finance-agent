@@ -47,6 +47,25 @@ class Settings(BaseSettings):
     # Receipt ↔ bank transaction matching window
     receipt_match_days: int = 5
 
+    # Bank feeds (Plaid). Get keys at https://dashboard.plaid.com → Developers → Keys.
+    plaid_client_id: str | None = None
+    plaid_secret: str | None = None
+    plaid_env: Literal["sandbox", "production"] = "sandbox"
+    plaid_country_codes: str = "US,CA"
+    plaid_base_url: str | None = None  # override the Plaid host (testing / proxies)
+    # Hours between automatic bank syncs (0 = only when you click "Sync now").
+    bank_sync_hours: float = 6
+    # Encrypts stored bank access tokens. Auto-generated into data/secret.key if empty.
+    encryption_key: str | None = None
+    secret_key_file: Path = Path("./data/secret.key")
+
+    # Accounts
+    # local    = single business on this computer, no login (one-click launcher)
+    # accounts = sign-up/login, many businesses with private books (hosted website)
+    auth_mode: Literal["local", "accounts"] = "local"
+    allow_signup: bool = True
+    session_days: int = 30
+
     # API
     cors_origins: str = "*"
 

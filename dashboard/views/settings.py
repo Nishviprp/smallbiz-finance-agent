@@ -32,3 +32,21 @@ with c2, st.container(border=True):
         st.toast(f"Deleted {r['deleted']['transactions']} transactions", icon=":material/delete:")
         st.session_state.pop("reset_confirm", None)
         st.rerun()
+
+if st.session_state.get("health", {}).get("auth_mode") == "accounts":
+    st.subheader("Account")
+    with st.form("password", clear_on_submit=True):
+        current_pw = st.text_input("Current password", type="password")
+        new_pw = st.text_input("New password (8+ characters)", type="password")
+        if st.form_submit_button("Change password"):
+            try:
+                api.post(
+                    "/auth/password",
+                    {"current_password": current_pw, "new_password": new_pw},
+                )
+            except api.APIError as exc:
+                st.error(str(exc))
+            else:
+                ui.sign_out(local_only=True)
+                st.success("Password changed. Please log in again.")
+                st.rerun()

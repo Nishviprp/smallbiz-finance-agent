@@ -66,6 +66,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate production compose file
+        working-directory: deploy
+        run: |
+          cp prod.env.example prod.env
+          sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=ci/' prod.env
+          docker compose -f docker-compose.prod.yml --env-file prod.env config -q
+          rm prod.env
       - name: Build and start the stack
         env:
           LLM_PROVIDER: none

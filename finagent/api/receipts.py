@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..db import get_db
 from ..models import Receipt, Transaction
 from ..schemas import ReceiptOut, ReceiptUpdate
+from .deps import get_tenant_db
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/receipts", tags=["receipts"])
 def list_receipts(
     unlinked: bool = False,
     limit: int = Query(default=200, ge=1, le=1000),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ):
     q = select(Receipt).order_by(Receipt.date.desc().nulls_last(), Receipt.id.desc())
     if unlinked:
@@ -24,12 +24,12 @@ def list_receipts(
 
 
 @router.get("/{receipt_id}", response_model=ReceiptOut)
-def get_receipt(receipt_id: int, db: Session = Depends(get_db)):
+def get_receipt(receipt_id: int, db: Session = Depends(get_tenant_db)):
     return _get(db, receipt_id)
 
 
 @router.patch("/{receipt_id}", response_model=ReceiptOut)
-def update_receipt(receipt_id: int, body: ReceiptUpdate, db: Session = Depends(get_db)):
+def update_receipt(receipt_id: int, body: ReceiptUpdate, db: Session = Depends(get_tenant_db)):
     r = _get(db, receipt_id)
     data = body.model_dump(exclude_unset=True)
     if (
@@ -44,7 +44,7 @@ def update_receipt(receipt_id: int, body: ReceiptUpdate, db: Session = Depends(g
 
 
 @router.delete("/{receipt_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_receipt(receipt_id: int, db: Session = Depends(get_db)):
+def delete_receipt(receipt_id: int, db: Session = Depends(get_tenant_db)):
     db.delete(_get(db, receipt_id))
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

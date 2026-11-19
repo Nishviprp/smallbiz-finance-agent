@@ -44,12 +44,12 @@ DEFAULT_CATEGORIES: list[tuple[str, str, bool]] = [
 
 
 def seed_defaults(db: Session) -> int:
-    """Insert default categories once (only when the table is empty)."""
+    """Insert default categories for the business in scope (only when it has none)."""
     if db.scalar(select(Category.id).limit(1)) is not None:
         return 0
     db.add_all(
         Category(name=name, kind=kind, tax_deductible=deductible, is_default=True)
         for name, kind, deductible in DEFAULT_CATEGORIES
     )
-    db.commit()
+    db.flush()
     return len(DEFAULT_CATEGORIES)

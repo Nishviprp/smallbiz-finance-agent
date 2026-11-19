@@ -1,0 +1,72 @@
+# Production: one website, many businesses, HTTPS, Postgres.
+# Full guide: docs/HOSTING.md
+#
+#   cd deploy
+#   cp prod.env.example prod.env   # fill it in
+#   docker compose -f docker-compose.prod.yml --env-file prod.env up -d --build
+#
+# Only Caddy is reachable from the internet (ports 80/443). The API and database stay private.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in prod.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - dashboard
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/dashboard.Dockerfile
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    env_file: prod.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://finagent:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/finagent
+      UPLOAD_DIR: /app/data/uploads
+      AUTH_MODE: accounts
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: finagent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: finagent
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finagent"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:
+  app-data:
+  postgres-data:

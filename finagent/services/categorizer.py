@@ -68,7 +68,7 @@ class Suggestion:
     confidence: float
 
 
-def _sign_ok(kind: str, amount: Decimal) -> bool:
+def sign_ok(kind: str, amount: Decimal) -> bool:
     if kind == "income":
         return amount > 0
     if kind == "expense":
@@ -118,7 +118,7 @@ class Categorizer:
     def match_keyword(self, description: str, amount: Decimal) -> Suggestion | None:
         text = description.lower()
         for pattern, cat in self._keywords:
-            if pattern.search(text) and _sign_ok(cat.kind, amount):
+            if pattern.search(text) and sign_ok(cat.kind, amount):
                 return Suggestion(cat.id, "keyword", 0.9)
         return None
 
@@ -165,7 +165,7 @@ class Categorizer:
             if txn is None or not isinstance(name, str):
                 continue
             cat = self.by_name.get(name.strip().lower())
-            if cat is None or not _sign_ok(cat.kind, txn.amount):
+            if cat is None or not sign_ok(cat.kind, txn.amount):
                 continue
             conf = _clamp(item.get("confidence", 0.6))
             out[txn.key] = Suggestion(cat.id, "llm", conf)
