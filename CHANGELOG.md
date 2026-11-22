@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.1 — 2026-11-22
+
+Tested against the real Plaid sandbox.
+
+### Fixed
+- Launcher crashed with "Permission denied" when run with a system-wide Python
+  (`python launch.py` without the `.venv`): it now keeps its package checksum in `data/`.
+- Bank accounts page stayed blank while waiting for Plaid, and hid everything if Plaid returned
+  an error. The test-bank button now shows first and Plaid errors appear as a clear warning.
+
 ## v0.3.0 — 2026-11-18
 
 Host it online: one website, many businesses, automatic bank feeds.

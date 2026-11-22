@@ -121,28 +121,6 @@ if conns:
 
 # ---- Connect -----------------------------------------------------------------------
 st.subheader("Connect a bank" if not conns else "Connect another bank")
-if "link_token" not in st.session_state:
-    st.session_state.link_token = ui.call(api.post, "/bank/link-token")["link_token"]
-result = first_time(
-    plaid_link(st.session_state.link_token, key=f"plaid_new_{st.session_state.link_token[-12:]}")
-)
-if result:
-    if result.get("public_token"):
-        with st.spinner("Connecting and importing your transactions…"):
-            r = ui.call(
-                api.post,
-                "/bank/connect",
-                {
-                    "public_token": result["public_token"],
-                    "institution_name": result.get("institution"),
-                },
-            )
-        st.session_state.pop("link_token", None)
-        st.session_state.bank_result = [r["sync"]]
-        st.rerun()
-    elif result.get("error"):
-        st.warning(result["error"])
-
 if status["env"] == "sandbox":
     st.caption(
         "Sandbox mode: in the Plaid window pick any bank and sign in with **user_good / pass_good**, "
@@ -153,6 +131,35 @@ if status["env"] == "sandbox":
             r = ui.call(api.post, "/bank/sandbox-connect")
         st.session_state.bank_result = [r["sync"]]
         st.rerun()
+
+if "link_token" not in st.session_state:
+    try:
+        with st.spinner("Contacting Plaid…"):
+            st.session_state.link_token = api.post("/bank/link-token")["link_token"]
+    except api.APIError as exc:
+        st.warning(f"Couldn't open the Plaid window: {exc}", icon=":material/warning:")
+if st.session_state.get("link_token"):
+    result = first_time(
+        plaid_link(
+            st.session_state.link_token, key=f"plaid_new_{st.session_state.link_token[-12:]}"
+        )
+    )
+    if result:
+        if result.get("public_token"):
+            with st.spinner("Connecting and importing your transactions…"):
+                r = ui.call(
+                    api.post,
+                    "/bank/connect",
+                    {
+                        "public_token": result["public_token"],
+                        "institution_name": result.get("institution"),
+                    },
+                )
+            st.session_state.pop("link_token", None)
+            st.session_state.bank_result = [r["sync"]]
+            st.rerun()
+        elif result.get("error"):
+            st.warning(result["error"])
 
 hours = status["auto_sync_hours"]
 st.caption(

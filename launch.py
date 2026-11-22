@@ -28,7 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 REQUIREMENTS = [ROOT / "requirements.txt", ROOT / "dashboard" / "requirements.txt"]
-MARKER = Path(sys.prefix) / ".smallbiz-requirements.sha256"
+# Kept in the project folder: sys.prefix is read-only when run with a system-wide Python.
+MARKER = ROOT / "data" / ".packages.sha256"
 APP_NAME = "SmallBiz Finance Agent"
 
 
@@ -37,7 +38,7 @@ def say(msg: str) -> None:
 
 
 def requirements_hash() -> str:
-    h = hashlib.sha256()
+    h = hashlib.sha256(sys.executable.encode())
     for path in REQUIREMENTS:
         h.update(path.read_bytes())
     return h.hexdigest()
@@ -55,7 +56,9 @@ def ensure_packages() -> None:
         raise SystemExit(
             "\n  Package installation failed. Check your internet connection and try again."
         )
-    MARKER.write_text(wanted)
+    with contextlib.suppress(OSError):
+        MARKER.parent.mkdir(parents=True, exist_ok=True)
+        MARKER.write_text(wanted)
     say("Packages ready.")
 
 
